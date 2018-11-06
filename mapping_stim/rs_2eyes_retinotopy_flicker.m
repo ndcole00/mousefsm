@@ -16,7 +16,7 @@ if ~DEMO
     %FILENAME%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     n = 1;
     %Concatenation to make filename
-    rootdir = 'C:\Jasper\Data\AuxRec\';
+    rootdir = 'C:\Data\AuxRec\';
     stem    = 'rs_2eyes_retinotopy';
     
     D=datestr(now,'yyyymmdd_HHMMSS');
@@ -36,8 +36,8 @@ end
 if USBCONNECT
     s = daq.createSession('ni');
     s.addDigitalChannel('Dev1', 'Port0/Line0:2', 'OutputOnly'); % stimulus bits to auxiliary computer
-    s.addDigitalChannel('dev1', 'Port1/Line0:7', 'OutputOnly'); % word bit to auxiliary computer
-    s.addDigitalChannel('dev1', 'Port2/Line0',   'InputOnly'); % word bit to auxiliary computer
+    s.addDigitalChannel('Dev1', 'Port1/Line0:7', 'OutputOnly'); % word bit to auxiliary computer
+    s.addDigitalChannel('Dev1', 'Port2/Line0',   'InputOnly'); % word bit to auxiliary computer
     
     % outputs
     % 1(P0.0 AuxRec) word bit
@@ -81,20 +81,21 @@ try,
     %HideCursor; % edit HideCursor
     escapeKey = KbName('ESCAPE');
     
-    STM.lumgray   = calib20130403_gammacon(0.5,'rgb2lum');
-    STM.lumblack  = calib20130403_gammacon(0,'rgb2lum');
+    % to change when luminance correction done (Adil 05/11/2018)
+    STM.lumgray   = temp_gammacon_r303(0.5,'rgb2lum');
+    STM.lumblack  = temp_gammacon_r303(0,'rgb2lum');
     STM.lumwhite  = STM.lumgray+(STM.lumgray-STM.lumblack);
-    STM.rgbgray   = round(255*calib20130403_gammacon(STM.lumgray,'lum2rgb'));
-    STM.rgbblack  = round(255*calib20130403_gammacon(STM.lumblack,'lum2rgb'));
-    STM.rgbwhite  = round(255*calib20130403_gammacon(STM.lumwhite,'lum2rgb'));
+    STM.rgbgray   = round(255*temp_gammacon_r303(STM.lumgray,'lum2rgb'));
+    STM.rgbblack  = round(255*temp_gammacon_r303(STM.lumblack,'lum2rgb'));
+    STM.rgbwhite  = round(255*temp_gammacon_r303(STM.lumwhite,'lum2rgb'));
     
     % initialize screen
     screens=Screen('Screens');
     screenNumber=max(screens);
     
     % Open double-buffered onscreen window with the requested stereo mode:
-    screenNumber=1;
-    stereoMode=4;
+    screenNumber=2;
+    stereoMode=0;
     [expWin,screenRect]=Screen('OpenWindow',screenNumber,STM.rgbgray,[],[],[],stereoMode);
     
     ifi=Screen('GetFlipInterval',expWin); % Screen('GetFlipInterval?')
@@ -158,7 +159,7 @@ try,
     
     % Screen parameters:
     scrset.ifi              = ifi; % refresh rate
-    scrset.disp             = [screenRect(3),screenRect(4)]
+    scrset.disp             = [screenRect(3),screenRect(4)];
     scrset.cntr             = [scrset.disp(1)/2,scrset.disp(2)/2];
     scrset.fp               = scrset.cntr;
     
@@ -180,46 +181,63 @@ try,
     
     %-----------------------------------
     % stimulus position parameters
-    STM.Grid_xd = 15; % distance between grid points
-    STM.Grid_yd = 15;
-    STM.Grid_xc = -45+STM.Grid_xd/2:STM.Grid_xd:45;
-    STM.Grid_yc = -30+STM.Grid_yd/2:STM.Grid_yd:30;
-    STM.GridSz  = [length(STM.Grid_xc),length(STM.Grid_yc)];
+%     STM.Grid_xd = 15; % distance between grid points
+%     STM.Grid_yd = 15;
+%     STM.Grid_xc = -45+STM.Grid_xd/2:STM.Grid_xd:45;
+%     STM.Grid_yc = -30+STM.Grid_yd/2:STM.Grid_yd:30;
+%     STM.GridSz  = [length(STM.Grid_xc),length(STM.Grid_yc)];
+%     
+%     STM.Grid_xc_pix = scrset.cntr(1) + STM.Grid_xc.*scrset.ppd;
+%     STM.Grid_yc_pix = scrset.cntr(2) + STM.Grid_yc.*scrset.ppd;
+%     STM.Grid_xsiz = 15; % size of patch
+%     STM.Grid_ysiz = 15;
+%     STM.Grid_xsiz_pix = STM.Grid_xsiz.*scrset.ppd;
+%     STM.Grid_ysiz_pix = STM.Grid_ysiz.*scrset.ppd;
     
-    STM.Grid_xc_pix = scrset.cntr(1) + STM.Grid_xc.*scrset.ppd;
-    STM.Grid_yc_pix = scrset.cntr(2) + STM.Grid_yc.*scrset.ppd;
-    STM.Grid_xsiz = 15; % size of patch
-    STM.Grid_ysiz = 15;
-    STM.Grid_xsiz_pix = STM.Grid_xsiz.*scrset.ppd;
-    STM.Grid_ysiz_pix = STM.Grid_ysiz.*scrset.ppd;
-    
-    STM.Grid_xd = 20; % distance between grid points
+% square patches
+%     STM.Grid_xd = 20; % distance between grid points
+%     STM.Grid_yd = 20;
+%     STM.Grid_xc = -30+STM.Grid_xd/2:STM.Grid_xd:50;
+%     STM.Grid_yc = -30+STM.Grid_yd/2:STM.Grid_yd:30;
+%     STM.GridSz  = [length(STM.Grid_xc),length(STM.Grid_yc)];
+%     
+%     STM.Grid_xc_pix = scrset.cntr(1) + STM.Grid_xc.*scrset.ppd;
+%     STM.Grid_yc_pix = scrset.cntr(2) + STM.Grid_yc.*scrset.ppd;
+%     STM.Grid_xsiz = 20; % size of patch
+%     STM.Grid_ysiz = 20;
+%     STM.Grid_xsiz_pix = STM.Grid_xsiz.*scrset.ppd;
+%     STM.Grid_ysiz_pix = STM.Grid_ysiz.*scrset.ppd;
+%     
+
+% Not square but filling full screen
+    STM.Grid_xd = 25; % distance between grid points (in degrees, 1 degree is ~25 pixels)
     STM.Grid_yd = 20;
-    STM.Grid_xc = -30+STM.Grid_xd/2:STM.Grid_xd:50;
+    STM.Grid_xc = -50+STM.Grid_xd/2:STM.Grid_xd:50;
     STM.Grid_yc = -30+STM.Grid_yd/2:STM.Grid_yd:30;
     STM.GridSz  = [length(STM.Grid_xc),length(STM.Grid_yc)];
     
     STM.Grid_xc_pix = scrset.cntr(1) + STM.Grid_xc.*scrset.ppd;
     STM.Grid_yc_pix = scrset.cntr(2) + STM.Grid_yc.*scrset.ppd;
-    STM.Grid_xsiz = 20; % size of patch
+    STM.Grid_xsiz = 25; % size of patch
     STM.Grid_ysiz = 20;
     STM.Grid_xsiz_pix = STM.Grid_xsiz.*scrset.ppd;
     STM.Grid_ysiz_pix = STM.Grid_ysiz.*scrset.ppd;
     
-    %     % crude mapping:
-    %     STM.Grid_xd = 30; % distance between grid points
-    %     STM.Grid_yd = 30;
-    %     STM.Grid_xc = -30:STM.Grid_xd:30;
-    %     STM.Grid_yc = -15:STM.Grid_xd:15;
-    %     STM.GridSz  = [length(STM.Grid_xc),length(STM.Grid_yc)];
-    %
-    %     STM.Grid_xc_pix = scrset.cntr(1) + STM.Grid_xc.*scrset.ppd;
-    %     STM.Grid_yc_pix = scrset.cntr(2) + STM.Grid_yc.*scrset.ppd;
-    %     STM.Grid_xsiz = 30; % size of patch
-    %     STM.Grid_ysiz = 30;
-    %     STM.Grid_xsiz_pix = STM.Grid_xsiz.*scrset.ppd;
-    %     STM.Grid_ysiz_pix = STM.Grid_ysiz.*scrset.ppd;
-    
+%         % crude mapping:
+%         STM.Grid_xd = 30; % distance between grid points
+%         STM.Grid_yd = 30;
+%         STM.Grid_xc = -30:STM.Grid_xd:30;
+%         STM.Grid_yc = -15:STM.Grid_xd:15;
+%         STM.GridSz  = [length(STM.Grid_xc),length(STM.Grid_yc)];
+%     
+%         STM.Grid_xc_pix = scrset.cntr(1) + STM.Grid_xc.*scrset.ppd;
+%         STM.Grid_yc_pix = scrset.cntr(2) + STM.Grid_yc.*scrset.ppd;
+%         STM.Grid_xsiz = 30; % size of patch
+%         STM.Grid_ysiz = 30;
+%         STM.Grid_xsiz_pix = STM.Grid_xsiz.*scrset.ppd;
+%         STM.Grid_ysiz_pix = STM.Grid_ysiz.*scrset.ppd;
+%   
+        
     if FINEGRID, % finer mapping
         STM.Grid_xd = 10; % distance between grid points
         STM.Grid_yd = 10;
@@ -293,7 +311,7 @@ try,
     % testing
     
     if 0,
-        tmpdir = 'C:\Jasper\temp\rs_2eyes_retinotopy_flicker\';
+        tmpdir = 'C:\temp\rs_2eyes_retinotopy_flicker\';
         if ~isdir(tmpdir), mkdir(tmpdir); end
         dbstop if error
         STM.FLIPXEYE=1;
