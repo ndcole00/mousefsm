@@ -35,14 +35,15 @@ end
 
 if USBCONNECT
     s = daq.createSession('ni');
-    s.addDigitalChannel('Dev1', 'Port0/Line0:2', 'OutputOnly'); % stimulus bits to auxiliary computer
+    %     s.addDigitalChannel('Dev1', 'Port0/Line0:2', 'OutputOnly'); % stimulus bits to auxiliary computer
+    s.addDigitalChannel('Dev1', 'Port0/Line3:5', 'OutputOnly'); % stimulus bits to auxiliary computer
     s.addDigitalChannel('Dev1', 'Port1/Line0:7', 'OutputOnly'); % word bit to auxiliary computer
     s.addDigitalChannel('Dev1', 'Port2/Line0',   'InputOnly'); % word bit to auxiliary computer
     
     % outputs
-    % 1(P0.0 AuxRec) word bit
-    % 2(P0.1 AuxRec) stim bit
-    % 3(P0.2 AuxRec) targ bit
+    % 1(P0.0 AuxRec) word bit > changed to P0.3
+    % 2(P0.1 AuxRec) stim bit > changed to P0.4
+    % 3(P0.2 AuxRec) targ bit > changed to P0.5
     % 9:16(P1.1:P1.7,P2.0=PFI1:PFI8 AuxRec) value of word bit
     % inputs to StimComp
     % 1(P0.0 StimComp) word bit
@@ -94,7 +95,7 @@ try,
     screenNumber=max(screens);
     
     % Open double-buffered onscreen window with the requested stereo mode:
-    screenNumber=2;
+    screenNumber=3;
     stereoMode=0;
     [expWin,screenRect]=Screen('OpenWindow',screenNumber,STM.rgbgray,[],[],[],stereoMode);
     

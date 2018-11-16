@@ -427,10 +427,9 @@ while keeprunning
     Vis2 = 2^2; %teensy pin 4, visual stim 2 non rewarded
     Odr1 = 2^3; %teensy pin 5, odour1 rewarded
     Odr2 = 2^4; %teensy pin 6, odour2 non rewarded
-    S    = 2^5; %teensy pin 7, generic stim on signal
-    Bln  = 2^6; %teensy pin 8, blank odour
-    Irr  = 2^7; %teensy pin 9, Irrelevant vis, should be on with the vis bit
-    L   = 2^8; %teensy pin 10, trigger for optogenetic laser
+    Bln  = 2^5; %teensy pin 7, blank odour
+    Irr  = 2^6; %teensy pin 8, Irrelevant vis, should be on with the vis bit
+    L    = 2^7; %teensy pin 9, trigger for optogenetic laser
     
     Rew = R;
     iStim = 0;
@@ -493,7 +492,7 @@ while keeprunning
             
     end
     
-    Stim = Stim + S; % Generic stim on signal added
+    %Stim = Stim + S; % Generic stim on signal added
     
     if rand < pL % laser trial
         LR = 12;

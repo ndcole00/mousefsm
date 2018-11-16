@@ -10,7 +10,7 @@ fsm.trialend = fsm.teensyinput(end);
 fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
 
 aspectratio = 1;
-stimPosOffset = 0; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
+stimPosOffset = 500; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
 
 SF = str2num(get(fsm.handles.spatialfreq,'string'));
 period   = round(fsm.scrset.ppd./SF);
