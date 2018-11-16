@@ -67,9 +67,8 @@ fsm.Tirrelgrating = 1.8;
 fsm.Tirreldelay = 1;
 fsm.odour = [];
 fsm.plaser = 0;
-fsm.oridiff = 30;
-fsm.stim1ori = 180-fsm.oridiff/2;
-fsm.stim2ori = 180+fsm.oridiff/2;
+fsm.stim1ori = 180-15;
+fsm.stim2ori = 180+15;
 fsm.stimPosOffset = 500; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
 
 %--------------------------------------------------------------------------
@@ -198,13 +197,13 @@ fsm.handles.Titi = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.23 0.35 0.1 0.04],...
     'String',fsm.Titi,'FontSize',10);
 
-% Orientation difference
+% Speed averaging bin
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.02 0.3 0.2 0.04],...
-    'String','Orientation difference','FontSize',10);
-fsm.handles.oridiff = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'String','Speed averaging bin','FontSize',10);
+fsm.handles.spdavgbin = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.23 0.3 0.1 0.04],...
-    'String',fsm.oridiff,'FontSize',10);
+    'String',fsm.spdavgbin,'FontSize',10);
 %
 % Prob reward trials
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -277,14 +276,6 @@ uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','i
 fsm.handles.Textrawait = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.53 0.55 0.08 0.04],...
     'String',fsm.extrawait,'FontSize',10);
-
-% Horizontal position of patch
-uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.5 0.17 0.04],...
-    'String','Stim Pos (-560 to 560)','FontSize',10);
-fsm.handles.stimPosOffset = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.53 0.5 0.08 0.04],...
-    'String',fsm.stimPosOffset,'FontSize',10);
 %
 % % Ntrials with cue
 % uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -900,9 +891,6 @@ global fsm
 
 % Check which block, vis or odr
 blocktype = get(fsm.handles.blocktype,'Value');
-fsm.oridiff = get(fsm.handles.oridiff,'Value');
-fsm.stim1ori = 180-fsm.oridiff/2;
-fsm.stim2ori = 180+fsm.oridiff/2;
 
 switch blocktype
     case 1 % visual block
