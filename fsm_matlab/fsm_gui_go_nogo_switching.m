@@ -34,7 +34,7 @@ fsm.Titi = .1;
 fsm.contrast = 1;
 % fsm.orientationchange = [];
 % fsm.orientationchangelist = '45,12';
-fsm.orientation = [];
+fsm.orientation = 45;
 fsm.spatialfreq = .1;
 fsm.temporalfreq = 2;
 % fsm.attentionlocationlist = {'left','right','front','back'};
@@ -67,10 +67,10 @@ fsm.Tirrelgrating = 1.8;
 fsm.Tirreldelay = 1;
 fsm.odour = [];
 fsm.plaser = 0;
-fsm.oridiff = 30;
+fsm.oridiff = 45;
 fsm.stim1ori = 180-fsm.oridiff/2;
 fsm.stim2ori = 180+fsm.oridiff/2;
-fsm.stimPosOffset = 500; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
+fsm.stimPosOffset = 0; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
 
 %--------------------------------------------------------------------------
 % make GUI
@@ -413,6 +413,7 @@ keeprunning = 1;fsm.stop = 0;
 while keeprunning
     
     choose_stim % decide which stimlus to give
+    fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
     
     igT  = str2num(get(fsm.handles.Tirrelgrating,'string'));
     iwT  = str2num(get(fsm.handles.Tirreldelay,'string')) + exprnd(.2);
@@ -548,7 +549,7 @@ end
 fprintf(fsm.ard,'%s\n',num2str([row col]));
 
 % send speed averaging bin size
-spdbin = str2num(get(fsm.handles.spdavgbin,'string'))*1000;
+spdbin = fsm.spdavgbin*1000;
 fprintf(fsm.ard,'%s\n',num2str(spdbin));
 
 % send upper and lower limit for speed range
@@ -900,7 +901,7 @@ global fsm
 
 % Check which block, vis or odr
 blocktype = get(fsm.handles.blocktype,'Value');
-fsm.oridiff = get(fsm.handles.oridiff,'Value');
+fsm.oridiff =  str2num(get(fsm.handles.oridiff,'String'));
 fsm.stim1ori = 180-fsm.oridiff/2;
 fsm.stim2ori = 180+fsm.oridiff/2;
 

@@ -18,6 +18,7 @@ cyclespersecond = fsm.temporalfreq;
 freq = 1/period;
 contrast = fsm.contrast;
 orientation = fsm.orientation(fsm.trialnum);
+
 %changedorientation = orientation + fsm.orientationchange;
 
 % only one of these should be on at any time

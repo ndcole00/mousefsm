@@ -5,7 +5,7 @@
 % 20161102 used binary format for digiout
 % 20170819 uses teensy digital line 12 for trial end instead of serial
 
-function fsm_gui_go_nogo_switching()
+function fsm_gui_go_nogo_switching_difficultyRange()
 
 close all
 clearvars -global fsm
@@ -60,17 +60,17 @@ fsm.ntrialswithcue = 100;
 fsm.iscuetrial = 0;
 fsm.punishT = 4;
 fsm.instspeed = 0;
-fsm.blocktype = [];
+fsm.VISorODR = [];
 fsm.vbl = 0;
 fsm.pirrel = 0;
 fsm.Tirrelgrating = 1.8;
 fsm.Tirreldelay = 1;
 fsm.odour = [];
 fsm.plaser = 0;
-fsm.stim1ori = 180-15;
-fsm.stim2ori = 180+15;
-fsm.stimPosOffset = 500; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
-
+fsm.oridifflist = [30 20 10];
+fsm.stimPosOffset = 0; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
+fsm.nTrialsPerBlock = 40;
+fsm.blockchangetrial = 1;
 %--------------------------------------------------------------------------
 % make GUI
 
@@ -197,13 +197,13 @@ fsm.handles.Titi = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.23 0.35 0.1 0.04],...
     'String',fsm.Titi,'FontSize',10);
 
-% Speed averaging bin
+% Orientation difference list
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.02 0.3 0.2 0.04],...
-    'String','Speed averaging bin','FontSize',10);
-fsm.handles.spdavgbin = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'String','Orientation difference list','FontSize',10);
+fsm.handles.oridifflist = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.23 0.3 0.1 0.04],...
-    'String',fsm.spdavgbin,'FontSize',10);
+    'String',num2str(fsm.oridifflist),'FontSize',10);
 %
 % Prob reward trials
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -276,7 +276,28 @@ uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','i
 fsm.handles.Textrawait = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.53 0.55 0.08 0.04],...
     'String',fsm.extrawait,'FontSize',10);
-%
+
+% Horizontal position of patch
+uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.5 0.17 0.04],...
+    'String','Stim Pos (-560 to 560)','FontSize',10);
+fsm.handles.stimPosOffset = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.53 0.5 0.08 0.04],...
+    'String',fsm.stimPosOffset,'FontSize',10);
+
+% Blocks or Trial by trial changes in ori diff
+fsm.handles.blockORtbt = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+    'Position', [0.35 0.45 0.12 0.04],'String',{'Blocks','Trial By Trial'},...
+    'Value',1,'FontSize',10);
+
+uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.48 0.45 0.07 0.04],...
+    'String','Ntrl/block','FontSize',10);
+fsm.handles.nTrialsPerBlock = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.56 0.45 0.05 0.04],...
+    'String',fsm.nTrialsPerBlock,'FontSize',10);
+
+
 % % Ntrials with cue
 % uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
 %     'Position', [0.42 0.5 0.1 0.04],...%[0.35 0.5 0.08 0.04]
@@ -299,7 +320,7 @@ fsm.handles.Textrawait = uicontrol('Parent',fsm.handles.f,'Units','normalized','
 %     'Value',1,'FontSize',10);
 %
 % Vis or odr block
-fsm.handles.blocktype = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
     'Position', [0.49 0.40 0.12 0.04],'String',{'Visual','Odour'},...
     'Value',1,'FontSize',10);
 %
@@ -404,6 +425,7 @@ keeprunning = 1;fsm.stop = 0;
 while keeprunning
     
     choose_stim % decide which stimlus to give
+    fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
     
     igT  = str2num(get(fsm.handles.Tirrelgrating,'string'));
     iwT  = str2num(get(fsm.handles.Tirreldelay,'string')) + exprnd(.2);
@@ -539,7 +561,7 @@ end
 fprintf(fsm.ard,'%s\n',num2str([row col]));
 
 % send speed averaging bin size
-spdbin = str2num(get(fsm.handles.spdavgbin,'string'))*1000;
+spdbin = fsm.spdavgbin*1000;
 fprintf(fsm.ard,'%s\n',num2str(spdbin));
 
 % send upper and lower limit for speed range
@@ -695,7 +717,8 @@ fsm.orientation = [];
 % fsm.blockchangetrial = 1;
 % fsm.changelist = {};
 % fsm.changelist_ori = [];
-fsm.blocktype = [];
+fsm.VISorODR = [];
+fsm.blockORtbt = [];
 fsm.stimtype = [];
 fsm.odour = [];
 fsm.outcome = [];
@@ -880,8 +903,8 @@ for i = 1:length(correcttrials)
     yplot(i) = mean(correcttrials(max([1 i-20]):i))*100;
 end
 if length(correcttrials)>=5
-    blocktype = get(fsm.handles.blocktype,'Value');
-    plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{blocktype});
+    VISorODR = get(fsm.handles.VISorODR,'Value');
+    plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{VISorODR});
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
@@ -890,10 +913,46 @@ function choose_stim
 global fsm
 
 % Check which block, vis or odr
-blocktype = get(fsm.handles.blocktype,'Value');
+VISorODR   = get(fsm.handles.VISorODR,'Value');
+fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
 
-switch blocktype
+
+switch VISorODR
     case 1 % visual block
+        fsm.VISorODR(fsm.trialnum+1) = 1;
+        % find out if blockwise or trial by trial for different difficulties% trialnum is not yet incremented
+        fsm.blockORtbt(fsm.trialnum+1) = get(fsm.handles.blockORtbt,'Value');
+        blockORtbt = fsm.blockORtbt(fsm.trialnum+1);
+        
+        switch blockORtbt
+            case 1 % blocks
+                if isempty(fsm.orientation) || fsm.VISorODR(fsm.trialnum)==2 || fsm.blockORtbt(fsm.trialnum)==2% first trial or change to blockwise after odr block/ vis trial by trial
+                    fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(1);
+                    fsm.blockchangetrial = fsm.trialnum+1;
+                else
+                    % is it time to change blocks?
+                    if fsm.trialnum+1 - fsm.blockchangetrial >= str2num(get(fsm.handles.nTrialsPerBlock,'String'))
+                        fsm.blockchangetrial = fsm.trialnum+1;
+                        oridifflistind = find(fsm.oridifflist==fsm.oridiff(fsm.trialnum));
+                        if oridifflistind<length(fsm.oridifflist)
+                            fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(oridifflistind+1);
+                        else
+                            fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(oridifflistind);% keep last difficulty if finished all others
+                        end
+                        
+                    else % continue same block
+                        fsm.oridiff(fsm.trialnum+1) = fsm.oridiff(fsm.trialnum);% keep last difficulty if finished all others
+                    end
+                end
+                
+            case 2 % trial by trial
+                rr = randi([1, length(fsm.oridifflist)]);
+                fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
+        end
+        
+        
+        fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
+        fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
         
         % choose rewarded or non rewarded stim
         if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
@@ -906,7 +965,9 @@ switch blocktype
         fsm.odour(fsm.trialnum+1) = NaN;
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
         set(fsm.handles.odour, 'String',['Odour: ']);
+        
     case 2 % odour block
+        fsm.VISorODR(fsm.trialnum+1) = 2;
         if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
             fsm.stimtype(fsm.trialnum+1) = 3; % rewarded odr
             fsm.odour(fsm.trialnum+1) = 1;
@@ -919,7 +980,11 @@ switch blocktype
         if rand < str2num(get(fsm.handles.pirrel,'String')) %
             fsm.irrelgrating(fsm.trialnum+1) = 1;
             % select irrelevant grating orientation
-            if rand < .5; fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;else fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;end
+            rr = randi([1, length(fsm.oridifflist)]);
+            fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
+            if rand < .5; fsm.orientation(fsm.trialnum+1) = 180-fsm.oridiff(fsm.trialnum+1)/2;
+            else fsm.orientation(fsm.trialnum+1) = 180+fsm.oridiff(fsm.trialnum+1)/2;end
+            
             set(fsm.handles.orientation, 'String',['Orientation: Irr ' num2str(fsm.orientation(fsm.trialnum+1))]);
         else
             fsm.irrelgrating(fsm.trialnum+1) = 2; % no irrel grating
@@ -927,81 +992,6 @@ switch blocktype
             fsm.orientation(fsm.trialnum+1) = 0;
         end
 end
-
-
-% % find out if blockwise or trial by trial% trialnum is not yet incremented
-% fsm.difflist = str2num(get(fsm.handles.orientationchangelist,'String'));
-% if isempty(fsm.orientationchange) % first trial
-%     fsm.orientationchange(1) = fsm.difflist(1);
-%     fsm.blocktype(1) = 1;
-% end
-% blockORtbt = get(fsm.handles.blockORtbt,'Value');
-% switch blockORtbt
-%     case 1 % blocks
-%         % is it time to change blocks?
-%         if fsm.trialnum+1 - fsm.blockchangetrial >= str2num(get(fsm.handles.ntrialsperblock,'String'))
-%             fsm.blockchangetrial = fsm.trialnum+1;
-%             %curr = find(fsm.difflist==fsm.orientationchange(fsm.trialnum));
-%             if fsm.blocktype(fsm.trialnum) == length(fsm.difflist)
-%                 fsm.orientationchange(fsm.trialnum+1) = fsm.difflist(1);
-%                 fsm.blocktype(fsm.trialnum+1) = 1;
-%             else
-%                 fsm.orientationchange(fsm.trialnum+1) = fsm.difflist(fsm.blocktype(fsm.trialnum)+1);
-%                 fsm.blocktype(fsm.trialnum+1) = fsm.blocktype(fsm.trialnum) + 1;
-%             end
-%
-%         else
-%             if fsm.trialnum>0
-%                 if rand < str2num(get(fsm.handles.pprobe,'String')) % if probe trial
-%                     if fsm.blocktype(fsm.trialnum) == length(fsm.difflist)
-%                         fsm.orientationchange(fsm.trialnum+1) = fsm.difflist(1);%probe is first in list
-%                     else
-%                         fsm.orientationchange(fsm.trialnum+1) = fsm.difflist(fsm.blocktype(fsm.trialnum)+1);%probe is next in list
-%                     end
-%                 else % non probe normal trial
-%                     fsm.orientationchange(fsm.trialnum+1) = fsm.difflist(fsm.blocktype(fsm.trialnum));
-%                 end
-%                 fsm.blocktype(fsm.trialnum+1) = fsm.blocktype(fsm.trialnum);
-%             end
-%         end
-%
-%
-%     case 2 % trial by trial
-%         rr = randi([1, length(fsm.difflist)]);
-%         fsm.orientationchange(fsm.trialnum+1) = fsm.difflist(rr);
-% end
-%
-% set(fsm.handles.orientationchange,'String',['Orientation change: ' num2str(fsm.orientationchange(fsm.trialnum+1))])
-
-% This decides where the attention is focused, and where the cue (if any) will come
-% now choose orientation change location
-% if rand < str2num(get(fsm.handles.pmismatch,'String')) % mismatch trial
-%     fsm.mismatch(fsm.trialnum+1) = 1;
-%     set(fsm.handles.mismatch,'String',['Mismatch trial: ' num2str(fsm.mismatch(fsm.trialnum+1))]);
-%     if strcmp(fsm.attentionlocation{fsm.trialnum+1},fsm.attentionlocationlist{1})
-%         fsm.orientationchangelocation{fsm.trialnum+1} = fsm.attentionlocationlist{2};
-%     elseif strcmp(fsm.attentionlocation{fsm.trialnum+1},fsm.attentionlocationlist{2})
-%         fsm.orientationchangelocation{fsm.trialnum+1} = fsm.attentionlocationlist{1};
-%     elseif strcmp(fsm.attentionlocation{fsm.trialnum+1},fsm.attentionlocationlist{3})
-%         fsm.orientationchangelocation{fsm.trialnum+1} = fsm.attentionlocationlist{4};
-%     elseif strcmp(fsm.attentionlocation{fsm.trialnum+1},fsm.attentionlocationlist{4})
-%         fsm.orientationchangelocation{fsm.trialnum+1} = fsm.attentionlocationlist{3};
-%     end
-% else % no mismatch
-%     fsm.mismatch(fsm.trialnum+1) = 0;
-%     set(fsm.handles.mismatch,'String',['Mismatch trial: ' num2str(fsm.mismatch(fsm.trialnum+1))]);
-%     fsm.orientationchangelocation{fsm.trialnum+1} = fsm.attentionlocation{fsm.trialnum+1};
-% end
-%
-% Now choose the orientation from 8 options, go through list without replacement
-% if rem(fsm.trialnum,8) == 0
-%     fsm.orilist = randperm(8);
-% end
-% fsm.orientation(fsm.trialnum+1) = (fsm.orilist(rem(fsm.trialnum,8)+1))*360/8;
-% set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
-
-
-
 
 
 

@@ -95,7 +95,7 @@ try,
     screenNumber=max(screens);
     
     % Open double-buffered onscreen window with the requested stereo mode:
-    screenNumber=3;
+    screenNumber=2;
     stereoMode=0;
     [expWin,screenRect]=Screen('OpenWindow',screenNumber,STM.rgbgray,[],[],[],stereoMode);
     
