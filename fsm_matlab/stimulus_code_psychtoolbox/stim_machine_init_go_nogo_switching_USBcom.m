@@ -1,14 +1,14 @@
-function stim_machine_init_go_nogo_switching
+function stim_machine_init_go_nogo_switching_USBcom
 
 global fsm
 
-
-fsm.s = daq.createSession('ni');
-fsm.s.addDigitalChannel('Dev1', 'Port0/Line0:2', 'InputOnly');
+% 
+% fsm.s = daq.createSession('ni');
+% fsm.s.addDigitalChannel('Dev1', 'Port0/Line0:2', 'InputOnly');
 % fsm.s.addDigitalChannel('Dev1', 'Port0/Line4', 'InputOnly');% 
 % fsm.s.addDigitalChannel('Dev1', 'Port0/Line3', 'InputOnly');% 
-
-fsm.s.inputSingleScan; % first call is slowest
+% 
+% fsm.s.inputSingleScan; % first call is slowest
 
 
 

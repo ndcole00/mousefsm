@@ -2,6 +2,7 @@
 // Adil Khan, Basel 2016
 // This version uses binary format for digi out
 // 20170819 uses digital bit for trial end instead of serial
+// 20181206 uses USB serial to send all stim info to avoid using Daq
 
 #include <Encoder.h>
 // Change these two numbers to the pins connected to your encoder.
@@ -123,18 +124,13 @@ void loop()
       spd = (newPosition - oldPosition) * 62.83 / (4 * spdBin2);
       oldPosition = newPosition;
       analogWrite(A14, spd * 20 + 500);
-      // The actual speed in cm/s will need to be back calculated from this
-      // 12 bit means 4095 is 3.3V 
-      // 500 is 3.3*500/4095 V ~ .4V
-      // 20 is 3.3*20/4095 V ~ .016V
-      // speed in cm/s = (outputVoltage - .4)/.016
       sflag = sflag + 1;
-      if (sflag >= spdBin / spdBin2 && speedMonitorFlag == 1) {
-        Serial.println(spd);
-        //Serial.println(analogRead(0));
-        Serial.send_now();
-        sflag = 0;
-      }
+//      if (sflag >= spdBin / spdBin2 && speedMonitorFlag == 1) {
+//        Serial.println(spd);
+//        //Serial.println(analogRead(0));
+//        Serial.send_now();
+//        sflag = 0;
+//      }
 
 
     }
@@ -152,6 +148,7 @@ void loop()
       // send digiout
       // least significant bit is pin2, reward
       int dig = stm[state][5];
+      Serial.println(dig);
       for (int i=0; i<Npins; i++) {
         int val = bitRead(dig, i);
         digitalWrite(digioutPins[i], val);  
@@ -195,8 +192,8 @@ void loop()
 
     if (state == 99) { // end the trial
       triallog += millis(); triallog += "_"; triallog += state; triallog += "_End";
-      //Serial.println('E');
-      digitalWrite(trialendPin,HIGH);
+      Serial.println('E');
+      //digitalWrite(trialendPin,HIGH);
       Serial.println(triallog);
       runfsm = 0;
     }
