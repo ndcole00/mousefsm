@@ -146,14 +146,14 @@ void loop()
       // send digiout
       // least significant bit is pin2, reward
       int dig = stm[state][5];
-      for (int i=0; i<Npins; i++) {
+      for (int i = 0; i < Npins; i++) {
         int val = bitRead(dig, i);
-        digitalWrite(digioutPins[i], val);  
+        digitalWrite(digioutPins[i], val);
       }
 
-      // send analog out for PWM of laser 
+      // send analog out for PWM of laser
       analogWrite(analogoutPin, stm[state][6]);
-      
+
       // send the new state to matlab
       Serial.println('S');
       Serial.println(state);
@@ -236,6 +236,15 @@ void establishContact() {
     //Serial.println('G');
     if (Serial.available() > 0)  {
       char recvd = Serial.read();
+
+      if (recvd == 'T') { // Matlab asking for name of teensy file
+        while (Serial.available()) {
+          int dump = Serial.read(); //Clear input buffer
+        }
+        Serial.flush();
+        Serial.println(F(__FILE__));
+      }
+
       if (recvd == 'A') {
         while (Serial.available()) {
           int dump = Serial.read(); //Clear input buffer

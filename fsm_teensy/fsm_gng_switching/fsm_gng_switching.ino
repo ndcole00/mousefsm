@@ -81,7 +81,7 @@ void loop()
   else {
 
     Serial.println("startingFSM");
-    digitalWrite(trialendPin,LOW);
+    digitalWrite(trialendPin, LOW);
     runfsm = 1;
 
   }
@@ -124,7 +124,7 @@ void loop()
       oldPosition = newPosition;
       analogWrite(A14, spd * 20 + 500);
       // The actual speed in cm/s will need to be back calculated from this
-      // 12 bit means 4095 is 3.3V 
+      // 12 bit means 4095 is 3.3V
       // 500 is 3.3*500/4095 V ~ .4V
       // 20 is 3.3*20/4095 V ~ .016V
       // speed in cm/s = (outputVoltage - .4)/.016
@@ -152,11 +152,11 @@ void loop()
       // send digiout
       // least significant bit is pin2, reward
       int dig = stm[state][5];
-      for (int i=0; i<Npins; i++) {
+      for (int i = 0; i < Npins; i++) {
         int val = bitRead(dig, i);
-        digitalWrite(digioutPins[i], val);  
+        digitalWrite(digioutPins[i], val);
       }
-      
+
       // send the new state to matlab
       //Serial.println('S');
       //Serial.println(state);
@@ -196,7 +196,7 @@ void loop()
     if (state == 99) { // end the trial
       triallog += millis(); triallog += "_"; triallog += state; triallog += "_End";
       //Serial.println('E');
-      digitalWrite(trialendPin,HIGH);
+      digitalWrite(trialendPin, HIGH);
       Serial.println(triallog);
       runfsm = 0;
     }
@@ -240,6 +240,15 @@ void establishContact() {
     //Serial.println('G');
     if (Serial.available() > 0)  {
       char recvd = Serial.read();
+
+      if (recvd == 'T') { // Matlab asking for name of teensy file
+        while (Serial.available()) {
+          int dump = Serial.read(); //Clear input buffer
+        }
+        Serial.flush();
+        Serial.println(F(__FILE__));
+      }
+
       if (recvd == 'A') {
         while (Serial.available()) {
           int dump = Serial.read(); //Clear input buffer

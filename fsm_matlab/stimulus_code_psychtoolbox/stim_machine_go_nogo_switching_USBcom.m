@@ -5,17 +5,23 @@ dbstop if error
 global fsm
 % if fsm.trialnum ==0; return; end
 % fsm.teensyinput = fsm.s.inputSingleScan;
-if ~isfield(fsm, 'teensyinput'); fsm.teensyinput = 0;fsm.trialend = 0; end
+if ~isfield(fsm, 'teensyinput'); fsm.teensyinput = 0;fsm.trialend = 0;fsm.spdAvailable = 0; end
 if fsm.ard.BytesAvailable
     teensyinput = fscanf(fsm.ard,'%s');
-    fsm.teensyinput = teensyinput;
-    if fsm.teensyinput == 'E'
+    if teensyinput == 'E' % teensy sending trial end signal
         fsm.trialend = 1; 
         return
+    elseif teensyinput == 'S' % teensy sending speed
+        while ~fsm.ard.BytesAvailable;end
+        fsm.spd = fscanf(fsm.ard,'%s');
+        fsm.spdAvailable = 1;
     else
+        fsm.teensyinput = teensyinput;
         fsm.teensyinput = dec2bin(str2num(fsm.teensyinput));
-        fsm.teensyinput = fsm.teensyinput(end-2:end-1);% stim1 & 2 info on these bits
-        fsm.teensyinput = fsm.teensyinput -'0';% https://uk.mathworks.com/matlabcentral/answers/89526-binary-string-to-vector
+        if ~strcmp(fsm.teensyinput, '0')
+            fsm.teensyinput = fsm.teensyinput(end-2:end-1);% stim1 & 2 info on these bits
+            fsm.teensyinput = fsm.teensyinput -'0';% https://uk.mathworks.com/matlabcentral/answers/89526-binary-string-to-vector
+        end
     end
 end
 

@@ -12,8 +12,11 @@ clearvars -global fsm
 global fsm
 
 % Initialise
-fsm.comport = 'COM10';%num2str(GetComPort ('Teensy USB Serial'));
-fsm.savedir = 'C:\Jasper\Data\AuxRec\FSM\';
+try fsm.comport = num2str(GetComPort ('USB Serial Device'));
+catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+
+fsm.TeensyCode = 'fsm_gng_switching_optogenetics.ino';
+fsm.savedir = 'C:\Data\FSM_log\';
 fsm.token = 'EP00_B1';
 fsm.fname = '';
 fsm.spdrnghigh = 120;
@@ -375,6 +378,17 @@ fsm.ard=serial(fsm.comport,'BaudRate',9600); % create serial communication objec
 set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
 fprintf('serial port opened\n')
+
+% check if correct teensy code is loaded
+fprintf(fsm.ard,'%s','T');
+while ~fsm.ard.BytesAvailable;end
+rcvd = fscanf(fsm.ard,'%s');
+rcvdsplit = split(rcvd, '\');
+if strcmp(rcvdsplit{end},fsm.TeensyCode)
+    fprintf('Teensy code is correct: %s',rcvdsplit{end});
+else
+    error(sprintf('Teensy code is wrong: %s\n Load correct Teensy code and restart',rcvdsplit{end}));
+end
 
 % initiate the stim machine;
 stim_machine_init_go_nogo_switching

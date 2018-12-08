@@ -1,25 +1,18 @@
-// FSMteensy
-// Adil Khan, Basel 2016
-// This version uses binary format for digi out
-// 20170819 uses digital bit for trial end instead of serial
-// 20181206 uses USB serial to send all stim info to avoid using Daq
 
 #include <Encoder.h>
 // Change these two numbers to the pins connected to your encoder.
-Encoder myEnc(1, 0);// (0,1) or (1,0) depending on direction of wheel motion
+Encoder myEnc(0, 1);
 
 int ledPin = 13;
-int trialendPin = 12;
 int digioutPins[] = {
-  2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
-}; // 2 is rewd valve, least significant bit
-const int Npins = 11;
+  2, 3, 4, 5, 6, 7, 8, 9, 10
+}; // 2,8 are rewd valve, rest are visual stim related
 int runfsm = 0;
 int spdRngHi;
 int spdRngLo;
 int trialnum = 0;
 int lickThreshold;
-int speedMonitorFlag;
+const int Npins = 9;
 
 void setup() {
   // put your setup code here, to run once:
@@ -29,7 +22,6 @@ void setup() {
   }
   pinMode(ledPin, OUTPUT);
   Serial.setTimeout(10);
-  analogWriteResolution(12);
 }
 
 
@@ -39,7 +31,7 @@ void loop()
   // Matlab should be sending 'A' constantly
   // read it, reply with 'B'
   // then Matlab will send nRows nCols and stm
-  establishContact(); // This will also check if correct matlab code is running
+  establishContact();
   while (!Serial.available()) ; // hang program until a byte is received
   int nRows   = Serial.parseInt();
   int nCols   = Serial.parseInt();
@@ -47,7 +39,6 @@ void loop()
   spdRngHi = Serial.parseInt();
   spdRngLo = Serial.parseInt();
   lickThreshold = Serial.parseInt();
-  speedMonitorFlag = Serial.parseInt();
   // send a signal to say its received
   Serial.println('C');
 
@@ -82,7 +73,6 @@ void loop()
   else {
 
     Serial.println("startingFSM");
-    digitalWrite(trialendPin,LOW);
     runfsm = 1;
 
   }
@@ -95,9 +85,8 @@ void loop()
 
   int spdok;
   int spd = 0;
-  int spdBin2 = 5; //5ms resolution for AO
-  int sflag = 0;
-  int lick = 0;
+  int lickL = 0;
+  int lickR = 0;
   int stateJustChanged = 1;
   unsigned long StartTime = millis();
   unsigned long CurrentTime = millis();
@@ -118,52 +107,104 @@ void loop()
 
     // Check speed every x ms without pausing
     spdCurrMillis = millis();
-    if (spdCurrMillis - spdPrevMillis >= spdBin2) {
+    if (spdCurrMillis - spdPrevMillis >= spdBin) {
       spdPrevMillis = spdCurrMillis;
       newPosition = myEnc.read();
-      spd = (newPosition - oldPosition) * 62.83 / (4 * spdBin2);
+      spd = (newPosition - oldPosition) * 62.83 / (4 * spdBin);
       oldPosition = newPosition;
-      analogWrite(A14, spd * 20 + 500);
-      // The actual speed in cm/s will need to be back calculated from this
-      // 12 bit means 4095 is 3.3V
-      // 500 is 3.3*500/4095 V ~ .4V
-      // 20 is 3.3*20/4095 V ~ .016V
-      // speed in cm/s = (outputVoltage - .4)/.016
-      sflag = sflag + 1;
-      if (sflag >= spdBin / spdBin2 && speedMonitorFlag == 1) {
-        Serial.println('S');
-        Serial.println(spd);
-        //Serial.println(analogRead(0));
-        Serial.send_now();
-        sflag = 0;
-      }
-
-
+      Serial.println(spd);
+      Serial.send_now();
     }
 
     spdok = checkSpeed(spd);
 
     if (analogRead(0) > lickThreshold) {
-      lick = 1;
+      lickL = 1;
     }
     else {
-      lick = 0;
+      lickL = 0;
+    }
+    if (analogRead(1) > lickThreshold) {
+      lickR = 1;
+    }
+    else {
+      lickR = 0;
     }
 
     if (stateJustChanged == 1) {
       // send digiout
-      // least significant bit is pin2, reward
-      int dig = stm[state][5];
-      Serial.println(dig);
-      for (int i=0; i<Npins; i++) {
-        int val = bitRead(dig, i);
-        digitalWrite(digioutPins[i], val);  
+
+      switch (stm[state][6]) { // remember zero indexing
+        case 0: // all off
+          allPinsLow();
+          break;
+        case 1: // Pin 2 ON (rewd valve)
+          allPinsLow();
+          digitalWrite(digioutPins[0], HIGH);
+          break;
+        case 2: // Pin 3 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[1], HIGH);
+          break;
+        case 3: // Pin 4 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[2], HIGH);
+          break;
+        case 4: // Pin 5 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[3], HIGH);
+          break;
+        case 5: // Pin 6 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[4], HIGH);
+          break;
+        case 6: // Pin 7 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[5], HIGH);
+          break;
+
+        case 7: // Pin 2 AND 6 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[4], HIGH);
+          digitalWrite(digioutPins[0], HIGH);
+          break;
+        case 8: // Pin 2 AND 7 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[5], HIGH);
+          digitalWrite(digioutPins[0], HIGH);
+          break;
+
+        case 9: // Pin 8 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[6], HIGH);
+          break;
+
+        case 10: // Pin 8 AND 6 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[6], HIGH);
+          digitalWrite(digioutPins[0], HIGH);
+          break;
+        case 11: // Pin 8 AND 7 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[6], HIGH);
+          digitalWrite(digioutPins[0], HIGH);
+          break;
+
+        case 12: // Pin 9 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[7], HIGH);
+          break;
+
+        case 13: // Pin 10 of teensy ON
+          allPinsLow();
+          digitalWrite(digioutPins[8], HIGH);
+          break;
+
       }
-      
       // send the new state to matlab
-      //Serial.println('S');
-      //Serial.println(state);
-      //Serial.send_now();
+      Serial.println('S');
+      Serial.println(state);
+      Serial.send_now();
       StartTime = millis();
       stateJustChanged = 0;
     }
@@ -184,22 +225,27 @@ void loop()
       stateJustChanged = 1;
     }
 
-    else if (lick == 1 && state != stm[state][2]) { // lick
+    else if (lickL == 1 && state != stm[state][2]) { // lick
       triallog += millis(); triallog += "_"; triallog += state; triallog += "to"; triallog += stm[state][2]; triallog += "__";
       state = stm[state][2];
       stateJustChanged = 1;
     }
 
-    else if ((CurrentTime - StartTime) >= stm[state][4] && state != stm[state][3]) { // Timeup
+    else if (lickR == 1 && state != stm[state][3]) { // lick
       triallog += millis(); triallog += "_"; triallog += state; triallog += "to"; triallog += stm[state][3]; triallog += "__";
       state = stm[state][3];
+      stateJustChanged = 1;
+    }
+
+    else if ((CurrentTime - StartTime) >= stm[state][5] && state != stm[state][4]) { // Timeup
+      triallog += millis(); triallog += "_"; triallog += state; triallog += "to"; triallog += stm[state][4]; triallog += "__";
+      state = stm[state][4];
       stateJustChanged = 1;
     }
 
     if (state == 99) { // end the trial
       triallog += millis(); triallog += "_"; triallog += state; triallog += "_End";
       Serial.println('E');
-      //digitalWrite(trialendPin,HIGH);
       Serial.println(triallog);
       runfsm = 0;
     }
@@ -212,8 +258,7 @@ void loop()
         //int loglength = triallog.length();
         //Serial.println(loglength);
         Serial.println(triallog);
-        //digitalWrite(ledPin, LOW);
-        allPinsLow();
+        digitalWrite(ledPin, LOW);
 
       }
     }
@@ -228,19 +273,11 @@ void loop()
 
 void establishContact() {
   int madeContact = 0;
-  unsigned long spdPrevMillis = millis();
-  unsigned long spdCurrMillis = millis();
-  long oldPosition = myEnc.read();
-  long newPosition;
-  int spdBin2 = 5; // bins for speed measurement
-  int spd2;
-
   while (madeContact == 0) {
-    /*digitalWrite(ledPin,HIGH);
-      delay(500);
+    /* digitalWrite(ledPin,HIGH);
+      delay(50);
       digitalWrite(ledPin,LOW);
-      delay(500); */
-    //Serial.println('G');
+      delay(50); */
     if (Serial.available() > 0)  {
       char recvd = Serial.read();
 
@@ -251,7 +288,7 @@ void establishContact() {
         Serial.flush();
         Serial.println(F(__FILE__));
       }
-      
+
       if (recvd == 'A') {
         while (Serial.available()) {
           int dump = Serial.read(); //Clear input buffer
@@ -261,19 +298,6 @@ void establishContact() {
         //Serial.println(recvd);
         madeContact = 1;
       }
-    }
-    // Check speed every x ms without pausing
-    spdCurrMillis = millis();
-    if (spdCurrMillis - spdPrevMillis >= spdBin2) {
-      spdPrevMillis = spdCurrMillis;
-      newPosition = myEnc.read();
-      spd2 = (newPosition - oldPosition) * 62.83 / (4 * spdBin2);
-      oldPosition = newPosition;
-      analogWrite(A14, spd2 * 20 + 500);
-      digitalWrite(ledPin, HIGH);
-      delay(1);
-      digitalWrite(ledPin, LOW);
-
     }
   }
 }

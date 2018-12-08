@@ -15,6 +15,8 @@ global fsm
 % Initialise
 try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+
+fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
 fsm.savedir = 'C:\Data\FSM_log\';
 fsm.token = 'M99_B1';
 fsm.fname = '';
@@ -396,6 +398,18 @@ set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
 fprintf('serial port opened\n')
 
+
+% check if correct teensy code is loaded
+fprintf(fsm.ard,'%s','T');
+while ~fsm.ard.BytesAvailable;end
+rcvd = fscanf(fsm.ard,'%s');
+rcvdsplit = split(rcvd, '\');
+if strcmp(rcvdsplit{end},fsm.TeensyCode)
+    fprintf('Teensy code is correct: %s',rcvdsplit{end});
+else
+    error(sprintf('Teensy code is wrong: %s\n Load correct Teensy code and restart',rcvdsplit{end}));
+end
+
 % initiate the stim machine;
 stim_machine_init_go_nogo_switching_USBcom
 figure(fsm.handles.f)
@@ -606,6 +620,7 @@ rcvd = fscanf(fsm.ard,'%s');
 fprintf('Received %s\n',rcvd);
 switch rcvd
     case 'Error1'
+        fsm.orientation = [];
         % start again
     case 'startingFSM'
         fsm.trialnum = fsm.trialnum + 1;
@@ -620,7 +635,6 @@ switch rcvd
             end
             % check for stimulus change
             stim_machine_go_nogo_switching_USBcom
-            % check for end of trial
           
             if fsm.trialend == 1 % set by stim machine
                 trialend = 1;
@@ -657,14 +671,15 @@ switch rcvd
             
             % get speed only if SpeedMonitor checkbox is on
             elseif speedMonitorFlag
-                if fsm.ard.BytesAvailable
-                    rcvd2 = fscanf(fsm.ard,'%s');
+                if fsm.spdAvailable
+                    rcvd2 = fsm.spd;
                     olddat = get(fsm.handles.spdplot,'ydata');
                     newdat = cat(2,olddat(2:end),str2num(rcvd2));
                     set(fsm.handles.spdplot,'ydata',newdat);
                     set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
                     drawnow
                     fsm.instspeed = str2num(rcvd2);
+                    fsm.spdAvailable = 0;
                 end
             end
             
@@ -690,7 +705,7 @@ fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
 if ~isempty(fsm.triallog) % if its the first time you click stop
-    tic;while ~fsm.ard.BytesAvailable;if toc>2;break;end;end % wait for data with 2s timeout
+    tic;while ~fsm.ard.BytesAvailable;if toc>2;break;end;end% wait for data with 2s timeout
     try
         stopsignal = '';triallog = '';
         while ~strcmp(stopsignal,'d')% from 'stopped'
