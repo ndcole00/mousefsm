@@ -249,6 +249,14 @@ void establishContact() {
         Serial.println(F(__FILE__));
       }
 
+
+      if (recvd == 'V') { // Toggle reward valve
+        digitalWrite(rewardPin, HIGH);
+      }
+      if (recvd == 'W') { // Toggle reward valve
+        digitalWrite(rewardPin, LOW);
+      }
+
       if (recvd == 'A') {
         while (Serial.available()) {
           int dump = Serial.read(); //Clear input buffer

@@ -25,36 +25,23 @@ fsm.spdrnglow = 5;
 fsm.spdavgbin = .05;
 fsm.spdylim = 220;
 fsm.spdxrng = 5;
-% fsm.Tcuedelay = .1;
-% fsm.Tcue = 0;
 fsm.Tspeedmaintainmin = 2.8;
 fsm.Tspeedmaintainmeanadd = .4;
 fsm.Tstimdurationmin = 1.5;
 fsm.Tstimdurationmeanadd = .2;
-% fsm.Tminorientationview = .25;
 fsm.Trewdavailable = 1;
 fsm.Titi = .1;
 fsm.contrast = 1;
-% fsm.orientationchange = [];
-% fsm.orientationchangelist = '45,12';
 fsm.orientation = [];
 fsm.spatialfreq = .1;
 fsm.temporalfreq = 2;
-% fsm.attentionlocationlist = {'left','right','front','back'};
-% fsm.attentionlocation = {};
-% fsm.orientationchangelocation = {};
 fsm.stimtype = [];
 fsm.prewd = .5;
-% fsm.ntrialsperblock = 900;
 fsm.rewd = .1;
 fsm.trialnum = 0;
 fsm.triallog = {};
 fsm.lickthreshold = 1.7;
 % fsm.RT = [];
-% fsm.FAT = {};
-% fsm.refractoryLT = {};
-% fsm.changelist = {};% each change in ori is either refractory lick, miss or correct
-% fsm.changelist_ori = [];% orientation change of each change
 fsm.blockchangetrial = 1;
 fsm.grayscreen = 0;
 fsm.extrawait = .5;
@@ -90,7 +77,7 @@ fsm.handles.ax(2)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0
 title('Performance');
 hold(fsm.handles.ax(2),'on');
 
-fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.35 .03 0.27 0.24]);
+fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Visible','off','Units','normalized','Position',[0.35 .03 0.27 0.24]);
 %try imshow ('M:\Adil\FSM\contrast change task schematic.jpg');end
 hold(fsm.handles.ax(3),'on');
 
@@ -388,6 +375,10 @@ fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.49 0.3 0.12 0.10],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
+% Toggle valve button
+fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.45 0.2 0.16 0.04],...
+    'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -403,7 +394,7 @@ fprintf('serial port opened\n')
 fprintf(fsm.ard,'%s','T');
 while ~fsm.ard.BytesAvailable;end
 rcvd = fscanf(fsm.ard,'%s');
-rcvdsplit = split(rcvd, '\');
+rcvdsplit = strsplit(rcvd, '\');
 if strcmp(rcvdsplit{end},fsm.TeensyCode)
     fprintf('Teensy code is correct: %s',rcvdsplit{end});
 else
@@ -425,6 +416,7 @@ DateString = datestr(now,'yyyymmdd_HHMMSS');
 fsm.fname = fullfile(fsm.savedir,[get(fsm.handles.token,'string') '_' DateString]);
 set(fsm.handles.fname,'String',fsm.fname)
 set(fsm.handles.start,'enable','off')
+set(fsm.handles.toggleRewdValve,'enable','off')
 set(fsm.handles.stop,'enable','on')
 cla(fsm.handles.ax(2));
 cla(fsm.handles.ax(3));
@@ -701,6 +693,7 @@ function call_stop(src,eventdata)
 global fsm
 fsm.stop = 1;
 set(fsm.handles.start,'enable','on')
+set(fsm.handles.toggleRewdValve,'enable','on')
 fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
@@ -1012,6 +1005,13 @@ switch VISorODR
 end
 
 
-
-
+function call_toggleRewdValve(src,eventdata)
+global fsm
+if isequal(fsm.handles.toggleRewdValve.BackgroundColor, [0 1 1])
+    set(fsm.handles.toggleRewdValve,'BackgroundColor','red')
+    fprintf(fsm.ard,'%s','V');
+else
+    set(fsm.handles.toggleRewdValve,'BackgroundColor','cyan')
+    fprintf(fsm.ard,'%s','W');
+end
 

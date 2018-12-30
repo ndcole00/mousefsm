@@ -10,6 +10,7 @@ Encoder myEnc(1, 0);// (0,1) or (1,0) depending on direction of wheel motion
 
 int ledPin = 13;
 int trialendPin = 12;
+int rewardPin = 2;
 int digioutPins[] = {
   2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 }; // 2 is rewd valve, least significant bit
@@ -82,7 +83,7 @@ void loop()
   else {
 
     Serial.println("startingFSM");
-    digitalWrite(trialendPin,LOW);
+    digitalWrite(trialendPin, LOW);
     runfsm = 1;
 
   }
@@ -155,11 +156,11 @@ void loop()
       // least significant bit is pin2, reward
       int dig = stm[state][5];
       Serial.println(dig);
-      for (int i=0; i<Npins; i++) {
+      for (int i = 0; i < Npins; i++) {
         int val = bitRead(dig, i);
-        digitalWrite(digioutPins[i], val);  
+        digitalWrite(digioutPins[i], val);
       }
-      
+
       // send the new state to matlab
       //Serial.println('S');
       //Serial.println(state);
@@ -251,7 +252,14 @@ void establishContact() {
         Serial.flush();
         Serial.println(F(__FILE__));
       }
-      
+
+      if (recvd == 'V') { // Toggle reward valve
+        digitalWrite(rewardPin, HIGH);
+      }
+      if (recvd == 'W') { // Toggle reward valve
+        digitalWrite(rewardPin, LOW);
+      }
+
       if (recvd == 'A') {
         while (Serial.available()) {
           int dump = Serial.read(); //Clear input buffer
