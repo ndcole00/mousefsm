@@ -9,6 +9,7 @@ Encoder myEnc(1, 0);// (0,1) or (1,0) depending on direction of wheel motion
 
 int ledPin = 13;
 int trialendPin = 12;
+int rewardPin = 2;
 int digioutPins[] = {
   2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 }; // 2 is rewd valve, least significant bit

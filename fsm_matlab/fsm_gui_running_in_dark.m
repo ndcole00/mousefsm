@@ -74,7 +74,7 @@ fsm.handles.ax(2)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0
 title('Reaction Times (s)');
 hold(fsm.handles.ax(2),'on');
 
-fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.35 .03 0.27 0.24]);
+fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Units','normalized','Visible','off','Position',[0.35 .03 0.27 0.24]);
 %try imshow ('M:\Adil\FSM\contrast change task schematic.jpg');end
 hold(fsm.handles.ax(3),'on');
 
@@ -346,6 +346,10 @@ fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.49 0.3 0.12 0.10],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
+% Toggle valve button
+fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.45 0.2 0.16 0.04],...
+    'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -382,6 +386,7 @@ DateString = datestr(now,'yyyymmdd_HHMMSS');
 fsm.fname = fullfile(fsm.savedir,[get(fsm.handles.token,'string') '_' DateString]);
 set(fsm.handles.fname,'String',fsm.fname)
 set(fsm.handles.start,'enable','off')
+set(fsm.handles.toggleRewdValve,'enable','off')
 set(fsm.handles.stop,'enable','on')
 cla(fsm.handles.ax(2));
 cla(fsm.handles.ax(3));
@@ -579,6 +584,7 @@ function call_stop(src,eventdata)
 global fsm
 fsm.stop = 1;
 set(fsm.handles.start,'enable','on')
+set(fsm.handles.toggleRewdValve,'enable','on')
 fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
@@ -847,8 +853,13 @@ fsm.orientation(fsm.trialnum+1) = (fsm.orilist(rem(fsm.trialnum,8)+1))*360/8;
 set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
 
 
-
-
-    
-
+function call_toggleRewdValve(src,eventdata)
+global fsm
+if isequal(fsm.handles.toggleRewdValve.BackgroundColor, [0 1 1])
+    set(fsm.handles.toggleRewdValve,'BackgroundColor','red')
+    fprintf(fsm.ard,'%s','V');
+else
+    set(fsm.handles.toggleRewdValve,'BackgroundColor','cyan')
+    fprintf(fsm.ard,'%s','W');
+end
 

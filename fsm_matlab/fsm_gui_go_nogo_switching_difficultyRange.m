@@ -22,38 +22,25 @@ fsm.fname = '';
 fsm.spdrnghigh = 220;
 fsm.spdrnglow = 5;
 fsm.spdavgbin = .05;
-fsm.spdylim = 220;
+fsm.spdylim = 110;
 fsm.spdxrng = 5;
-% fsm.Tcuedelay = .1;
-% fsm.Tcue = 0;
 fsm.Tspeedmaintainmin = 2.8;
 fsm.Tspeedmaintainmeanadd = .4;
 fsm.Tstimdurationmin = 1.5;
 fsm.Tstimdurationmeanadd = .2;
-% fsm.Tminorientationview = .25;
 fsm.Trewdavailable = 1;
 fsm.Titi = .1;
 fsm.contrast = 1;
-% fsm.orientationchange = [];
-% fsm.orientationchangelist = '45,12';
 fsm.orientation = [];
 fsm.spatialfreq = .1;
 fsm.temporalfreq = 2;
-% fsm.attentionlocationlist = {'left','right','front','back'};
-% fsm.attentionlocation = {};
-% fsm.orientationchangelocation = {};
 fsm.stimtype = [];
 fsm.prewd = .5;
-% fsm.ntrialsperblock = 900;
 fsm.rewd = .1;
 fsm.trialnum = 0;
 fsm.triallog = {};
-fsm.lickthreshold = 1.7;
+fsm.lickthreshold = 0.5;
 % fsm.RT = [];
-% fsm.FAT = {};
-% fsm.refractoryLT = {};
-% fsm.changelist = {};% each change in ori is either refractory lick, miss or correct
-% fsm.changelist_ori = [];% orientation change of each change
 fsm.blockchangetrial = 1;
 fsm.grayscreen = 0;
 fsm.extrawait = .5;
@@ -364,7 +351,7 @@ fsm.handles.autorewd = uicontrol('Parent',fsm.handles.f,'Units','normalized','St
 % Speed monitor
 fsm.handles.speedMonitorFlag = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
     'Position', [0.48 0.75 0.13 0.04],'String','Speed Monitor',...
-    'Value',1,'FontSize',10);
+    'Value',0,'FontSize',10);
 
 % Grating orientation
 fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -406,7 +393,7 @@ fprintf('serial port opened\n')
 fprintf(fsm.ard,'%s','T');
 while ~fsm.ard.BytesAvailable;end
 rcvd = fscanf(fsm.ard,'%s');
-rcvdsplit = split(rcvd, '\');
+rcvdsplit = strsplit(rcvd, '\');
 if strcmp(rcvdsplit{end},fsm.TeensyCode)
     fprintf('Teensy code is correct: %s',rcvdsplit{end});
 else
@@ -432,6 +419,7 @@ set(fsm.handles.toggleRewdValve,'enable','off')
 set(fsm.handles.stop,'enable','on')
 cla(fsm.handles.ax(2));
 cla(fsm.handles.ax(3));
+Xrng_speed_plot;
 drawnow;pause(0.00000001)
 
 make_state_matrix
@@ -450,6 +438,7 @@ while keeprunning
     iwT  = str2num(get(fsm.handles.Tirreldelay,'string')) + exprnd(.2);
     spdT = str2num(get(fsm.handles.Tspeedmaintainmin,'string')) + exprnd(str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string')));
     stmT = str2num(get(fsm.handles.Tstimdurationmin,'string')) + rand*str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
+    fsm.stmT = stmT;
     %     %if stimT>5;stimT=rand*5;end
     waitT = str2num(get(fsm.handles.Trewdavailable,'string'));
     rewT  = str2num(get(fsm.handles.rewd,'string'));
@@ -496,7 +485,7 @@ while keeprunning
             lok1 = 8;% punish
             fa = 8;% punish
             AR = 9; % no auto reward
-            waitT = 1;% hack! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
+            waitT = 1;% hard-coded! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
         case 3 % odour rewarded
             Stim = Odr1;% Odr1
             lok1 = 5;% rewd
@@ -521,7 +510,7 @@ while keeprunning
         case 4 % odour non rewarded
             Stim = Odr2;% Odr2
             lok1 = 8;% punish
-            fa = 3;% hack - to fix later by fixing valve glitch 8;% punish
+            fa = 8;% punish
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
                 if fsm.orientation(fsm.trialnum+1) == fsm.stim1ori;
@@ -625,11 +614,14 @@ fprintf('Received %s\n',rcvd);
 switch rcvd
     case 'Error1'
         % start again
+        fsm.orientation = [];
+        Xrng_speed_plot;
     case 'startingFSM'
         fsm.trialnum = fsm.trialnum + 1;
         set(fsm.handles.trialnum,'String',['Trial Number: ' num2str(fsm.trialnum)])
         fprintf('Trial number %d\n',fsm.trialnum);
         trialend = 0;
+        fsm.stimStartFlag = 1;
         while trialend == 0
             % check stop button
             if fsm.stop == 1
@@ -638,9 +630,9 @@ switch rcvd
             end
             % check for stimulus change
             stim_machine_go_nogo_switching
-            % check for end of trial
+            
           
-            if fsm.trialend == 1; % set by stim machine
+            if fsm.trialend == 1 % set by stim machine
                 trialend = 1;
                 % read trial log
                 while ~fsm.ard.BytesAvailable;end
@@ -652,25 +644,7 @@ switch rcvd
                 end
                 fsm.triallog{fsm.trialnum} = triallog;
                 fprintf('%s\n',fsm.triallog{fsm.trialnum});
-                findoutcome(triallog)
-                %                         [fsm.RT(fsm.trialnum), fsm.FAT{fsm.trialnum}, fsm.refractoryLT{fsm.trialnum},changelist] = findrectiontime(fsm.triallog{fsm.trialnum});
-                %                         updateRTplot
-                %                         fsm.changelist = [fsm.changelist changelist];
-                %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
-                %                 elseif rcvd2 == 'S'; % its sending the state
-                %                     while ~fsm.ard.BytesAvailable;end
-                %                     fsm.state = str2num(fscanf(fsm.ard,'%s'));
-                %                     set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
-                %
-                %                 else % else its sending the speed
-                %                     olddat = get(fsm.handles.spdplot,'ydata');
-                %                     newdat = cat(2,olddat(2:end),str2num(rcvd2));
-                %                     set(fsm.handles.spdplot,'ydata',newdat);
-                %                     set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
-                %                     drawnow
-                %                     fsm.instspeed = str2num(rcvd2);
-                %
-            
+                findoutcome(triallog)            
             
             % get speed only if SpeedMonitor checkbox is on
             elseif speedMonitorFlag
@@ -685,7 +659,7 @@ switch rcvd
                 end
             end
             
-            drawnow
+            
         end
 end
 
@@ -702,8 +676,7 @@ fprintf('make state matrix ended\n')
 function call_stop(src,eventdata)
 global fsm
 fsm.stop = 1;
-set(fsm.handles.start,'enable','on')
-set(fsm.handles.toggleRewdValve,'enable','on')
+
 fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
@@ -719,29 +692,25 @@ if ~isempty(fsm.triallog) % if its the first time you click stop
         fsm.triallog{fsm.trialnum} = triallog;
     end
     % save fsm
+    fsm_temp = fsm;
+    fsm = rmfield(fsm,'handles');% to avoid saving figure
     save(fsm.fname,'fsm');
     fprintf('Logfile saved\n')
-    
-    
+    fsm = fsm_temp; clear fsm_temp;
 end
+
 % reset
 fsm.trialnum = 0;
 fsm.triallog = {};
-% fsm.attentionlocation = {};
-% fsm.orientationchangelocation = {};
 fsm.orientation = [];
-% fsm.orientationchange = [];
-% fsm.RT = [];
-% fsm.FAT = {};
-% fsm.refractoryLT = {};
-% fsm.blockchangetrial = 1;
-% fsm.changelist = {};
-% fsm.changelist_ori = [];
 fsm.VISorODR = [];
 fsm.blockORtbt = [];
 fsm.stimtype = [];
 fsm.odour = [];
 fsm.outcome = [];
+
+set(fsm.handles.start,'enable','on')
+set(fsm.handles.toggleRewdValve,'enable','on')
 
 
 
@@ -754,7 +723,8 @@ try Screen('CloseAll');
 catch; fprintf('Did not stop PTB cleanly\n');end
 try fclose(fsm.ard); fprintf('serial port closed\n')% end communication with arduino
 catch; fprintf('Did not stop teensy cleanly, should reboot\n');end
-
+try delete(fsm.s);
+catch; fprintf('Did not stop NI DAQ cleanly\n');end
 delete(gcf);
 
 function call_change_savedir(src,eventdata)
@@ -1014,7 +984,6 @@ switch VISorODR
 end
 
 
-
 function call_toggleRewdValve(src,eventdata)
 global fsm
 if isequal(fsm.handles.toggleRewdValve.BackgroundColor, [0 1 1])
@@ -1024,6 +993,4 @@ else
     set(fsm.handles.toggleRewdValve,'BackgroundColor','cyan')
     fprintf(fsm.ard,'%s','W');
 end
-
-
 

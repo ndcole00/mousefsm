@@ -4,6 +4,7 @@
 Encoder myEnc(1, 0);// (0,1) or (1,0) depending on direction of wheel motion
 
 int ledPin = 13;
+int rewardPin = 2;
 int digioutPins[] = {
   2, 3, 4, 5, 6, 7, 8, 9, 10
 }; // 2 is rewd valve, rest are visual stim related
@@ -287,6 +288,13 @@ void establishContact() {
         }
         Serial.flush();
         Serial.println(F(__FILE__));
+        
+      }
+      if (recvd == 'V') { // Toggle reward valve
+        digitalWrite(rewardPin, HIGH);
+      }
+      if (recvd == 'W') { // Toggle reward valve
+        digitalWrite(rewardPin, LOW);
       }
 
       if (recvd == 'A') {

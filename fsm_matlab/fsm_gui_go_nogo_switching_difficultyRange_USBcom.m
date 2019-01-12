@@ -23,7 +23,7 @@ fsm.fname = '';
 fsm.spdrnghigh = 220;
 fsm.spdrnglow = 5;
 fsm.spdavgbin = .05;
-fsm.spdylim = 220;
+fsm.spdylim = 110;
 fsm.spdxrng = 5;
 fsm.Tspeedmaintainmin = 2.8;
 fsm.Tspeedmaintainmeanadd = .4;
@@ -40,7 +40,7 @@ fsm.prewd = .5;
 fsm.rewd = .1;
 fsm.trialnum = 0;
 fsm.triallog = {};
-fsm.lickthreshold = 1.7;
+fsm.lickthreshold = 0.5;
 % fsm.RT = [];
 fsm.blockchangetrial = 1;
 fsm.grayscreen = 0;
@@ -420,6 +420,7 @@ set(fsm.handles.toggleRewdValve,'enable','off')
 set(fsm.handles.stop,'enable','on')
 cla(fsm.handles.ax(2));
 cla(fsm.handles.ax(3));
+Xrng_speed_plot;
 drawnow;pause(0.00000001)
 
 make_state_matrix
@@ -438,6 +439,7 @@ while keeprunning
     iwT  = str2num(get(fsm.handles.Tirreldelay,'string')) + exprnd(.2);
     spdT = str2num(get(fsm.handles.Tspeedmaintainmin,'string')) + exprnd(str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string')));
     stmT = str2num(get(fsm.handles.Tstimdurationmin,'string')) + rand*str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
+    fsm.stmT = stmT;
     %     %if stimT>5;stimT=rand*5;end
     waitT = str2num(get(fsm.handles.Trewdavailable,'string'));
     rewT  = str2num(get(fsm.handles.rewd,'string'));
@@ -484,7 +486,7 @@ while keeprunning
             lok1 = 8;% punish
             fa = 8;% punish
             AR = 9; % no auto reward
-            waitT = 1;% hack! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
+            waitT = 1;% hard-coded! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
         case 3 % odour rewarded
             Stim = Odr1;% Odr1
             lok1 = 5;% rewd
@@ -612,13 +614,15 @@ rcvd = fscanf(fsm.ard,'%s');
 fprintf('Received %s\n',rcvd);
 switch rcvd
     case 'Error1'
-        fsm.orientation = [];
         % start again
+        fsm.orientation = [];
+        Xrng_speed_plot;
     case 'startingFSM'
         fsm.trialnum = fsm.trialnum + 1;
         set(fsm.handles.trialnum,'String',['Trial Number: ' num2str(fsm.trialnum)])
         fprintf('Trial number %d\n',fsm.trialnum);
         trialend = 0;
+        fsm.stimStartFlag = 1;
         while trialend == 0
             % check stop button
             if fsm.stop == 1
@@ -642,24 +646,6 @@ switch rcvd
                 fprintf('%s\n',fsm.triallog{fsm.trialnum});
                 findoutcome(triallog)
                 fsm.trialend = 0;
-                %                         [fsm.RT(fsm.trialnum), fsm.FAT{fsm.trialnum}, fsm.refractoryLT{fsm.trialnum},changelist] = findrectiontime(fsm.triallog{fsm.trialnum});
-                %                         updateRTplot
-                %                         fsm.changelist = [fsm.changelist changelist];
-                %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
-                %                 elseif rcvd2 == 'S'; % its sending the state
-                %                     while ~fsm.ard.BytesAvailable;end
-                %                     fsm.state = str2num(fscanf(fsm.ard,'%s'));
-                %                     set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
-                %
-                %                 else % else its sending the speed
-                %                     olddat = get(fsm.handles.spdplot,'ydata');
-                %                     newdat = cat(2,olddat(2:end),str2num(rcvd2));
-                %                     set(fsm.handles.spdplot,'ydata',newdat);
-                %                     set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
-                %                     drawnow
-                %                     fsm.instspeed = str2num(rcvd2);
-                %
-            
             
             % get speed only if SpeedMonitor checkbox is on
             elseif speedMonitorFlag
@@ -675,7 +661,6 @@ switch rcvd
                 end
             end
             
-            drawnow
         end
 end
 
@@ -692,8 +677,7 @@ fprintf('make state matrix ended\n')
 function call_stop(src,eventdata)
 global fsm
 fsm.stop = 1;
-set(fsm.handles.start,'enable','on')
-set(fsm.handles.toggleRewdValve,'enable','on')
+
 fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
@@ -709,30 +693,25 @@ if ~isempty(fsm.triallog) % if its the first time you click stop
         fsm.triallog{fsm.trialnum} = triallog;
     end
     % save fsm
+    fsm_temp = fsm;
+    fsm = rmfield(fsm,'handles');% to avoid saving figure
     save(fsm.fname,'fsm');
     fprintf('Logfile saved\n')
-    
+    fsm = fsm_temp; clear fsm_temp;
     
 end
 % reset
 fsm.trialnum = 0;
 fsm.triallog = {};
-% fsm.attentionlocation = {};
-% fsm.orientationchangelocation = {};
 fsm.orientation = [];
-% fsm.orientationchange = [];
-% fsm.RT = [];
-% fsm.FAT = {};
-% fsm.refractoryLT = {};
-% fsm.blockchangetrial = 1;
-% fsm.changelist = {};
-% fsm.changelist_ori = [];
 fsm.VISorODR = [];
 fsm.blockORtbt = [];
 fsm.stimtype = [];
 fsm.odour = [];
 fsm.outcome = [];
 fsm.trialend = 0;
+set(fsm.handles.start,'enable','on')
+set(fsm.handles.toggleRewdValve,'enable','on')
 
 
 
