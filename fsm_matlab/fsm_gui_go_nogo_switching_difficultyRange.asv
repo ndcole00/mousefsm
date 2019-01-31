@@ -751,13 +751,6 @@ fsm.odour = [];
 fsm.outcome = [];
 fsm.oridiff = [];
 
-fsm.TspeedMaintainMinByTrial = [];
-fsm.TspeedMaintainMeanAddbyTrial = [];
-fsm.spdRngLowByTrial = [];
-fsm.punishTByTrial = [];
-fsm.pirrelByTrial = [];
-fsm.prewdByTrial = [];
-
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
 
@@ -971,12 +964,12 @@ global fsm
 VISorODR   = get(fsm.handles.VISorODR,'Value');
 fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
 
-fsm.TspeedMaintainMinByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmin,'String'));
-fsm.TspeedMaintainMeanAddbyTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'String'));
-fsm.spdRngLowByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.spdrnglow,'String'));
-fsm.punishTByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.punishT,'String'));
-fsm.pirrelByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrel,'String'));
-fsm.prewdByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.prewd,'String'));
+fsm.TspeedMaintainMinByTrial = [];
+fsm.TspeedMaintainMeanAddbyTrial = [];
+fsm.spdRngLowByTrial = [];
+fsm.punishTByTrial = [];
+fsm.pirrelByTrial = [];
+fsm.prewdByTrial = [];
 
 switch VISorODR
     case 1 % visual block
