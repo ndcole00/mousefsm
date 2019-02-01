@@ -11,7 +11,6 @@ function fsm_gui_go_nogo_switching_difficultyRange_USBcom()
 close all
 clearvars -global fsm
 global fsm
-
 % Initialise
 try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end

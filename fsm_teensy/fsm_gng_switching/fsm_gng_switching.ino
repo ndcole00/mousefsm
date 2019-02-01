@@ -1,4 +1,4 @@
-// FSMteensy
+ // FSMteensy
 // Adil Khan, Basel 2016
 // This version uses binary format for digi out
 // 20170819 uses digital bit for trial end instead of serial
