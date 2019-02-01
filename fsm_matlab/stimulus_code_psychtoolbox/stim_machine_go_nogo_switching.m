@@ -45,11 +45,11 @@ switch trigg
     case 0 % gray screen
         
         if ~fsm.grayscreen
-            contrastL = 0;
-            contrastR = 0;
+            fsm.contrastL = 0;
+            fsm.contrastR = 0;
             
-            Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
-            if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+            Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastL, aspectratio, 0, 0, 0]);
+            if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastR, aspectratio, 0, 0, 0]);end
             % photodiode patch
             Screen('FillRect',fsm.winL,0,[0 0 120 120]);% white
             %Screen('Flip', fsm.winL, vbl + 0.5 * fsm.ifi,[],1,1);
@@ -60,11 +60,11 @@ switch trigg
         
     case 1 % Stim 1
         fsm.grayscreen = 0;
-        contrastL = contrast;
-        contrastR = contrast;
+        fsm.contrastL = contrast;
+        fsm.contrastR = contrast;
         
-        Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
-        if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+        Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastL, aspectratio, 0, 0, 0]);
+        if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastR, aspectratio, 0, 0, 0]);end
         % photodiode patch
         Screen('FillRect',fsm.winL,255,[0 0 120 120]);% white
         
@@ -75,8 +75,8 @@ switch trigg
             while vbl < vbl0 + fsm.stmT
                 fsm.phaseincrement = (cyclespersecond * 360) * fsm.ifi;
                 fsm.phase = fsm.phase + fsm.phaseincrement;
-                Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
-                if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+                Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastL, aspectratio, 0, 0, 0]);
+                if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastR, aspectratio, 0, 0, 0]);end
                 % photodiode patch
                 Screen('FillRect',fsm.winL,255,[0 0 120 120]);% white
                 vbl = Screen('Flip', fsm.winL, vbl + 0.5 * fsm.ifi,[],[],1);
@@ -88,11 +88,11 @@ switch trigg
 
     case 2 % Stim 2
         fsm.grayscreen = 0;
-        contrastL = contrast;
-        contrastR = contrast;
+        fsm.contrastL = contrast;
+        fsm.contrastR = contrast;
         
-        Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
-        if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+        Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastL, aspectratio, 0, 0, 0]);
+        if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, fsm.contrastR, aspectratio, 0, 0, 0]);end
         % photodiode patch
         Screen('FillRect',fsm.winL,255,[0 0 120 120]);% white
         

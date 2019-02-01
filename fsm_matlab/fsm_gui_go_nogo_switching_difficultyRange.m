@@ -88,7 +88,7 @@ fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Units','normalized','Visible','of
 %try imshow ('M:\Adil\FSM\contrast change task schematic.jpg');end
 hold(fsm.handles.ax(3),'on');
 
-fsm.handles.ax(4)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.35 0.02 0.25 0.26]);
+fsm.handles.ax(4)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.38 0.05 0.22 0.18]);
 title('Performance by orientation');
 
 % savedir
@@ -392,7 +392,10 @@ fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normaliz
     'Position', [0.45 0.28 0.16 0.04],...
     'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
 
-
+% Set parameters for orimap
+fsm.handles.setOrimapParams = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.35 0.28 0.1 0.04],...
+    'String','OriMap params', 'BackgroundColor', 'cyan','Callback', @call_setOrimapParams);
 
 
 %--------------------------------------------------------------------------
@@ -710,7 +713,7 @@ fsm.Tirreldelay = str2num(get(fsm.handles.Tirreldelay,'string'));
 fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
 fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
 fsm.spdrnglow = str2num(get(fsm.handles.spdrnglow,'string'));
-fsm.extrawait = str2num(get(fsm.handles.extrawait,'string'));
+fsm.extrawait = str2num(get(fsm.handles.Textrawait,'string'));
 fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
 fsm.punishT = str2num(get(fsm.handles.punishT,'string'));
 fsm.pirrel = str2num(get(fsm.handles.pirrel,'string'));
@@ -949,7 +952,7 @@ set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
 % Making a plot of the performance dependent on orientation.
 % - Need to make it solely for visual block trials.
-oriPerf= cell(45,1);
+oriPerf= cell(720,1);
 for j = 1:length(correcttrials)
 if fsm.VISorODR(j) == 1
     oriPerf{fsm.oridiff(j)}(end+1) = correcttrials(j);
@@ -1063,5 +1066,36 @@ if isequal(fsm.handles.toggleRewdValve.BackgroundColor, [0 1 1])
 else
     set(fsm.handles.toggleRewdValve,'BackgroundColor','cyan')
     fprintf(fsm.ard,'%s','W');
+end
+
+function call_setOrimapParams(src,eventdata)
+global fsm
+if isequal(fsm.handles.setOrimapParams.BackgroundColor, [0 1 1])
+    set(fsm.handles.setOrimapParams,'BackgroundColor','red')
+    set(fsm.handles.Tspeedmaintainmin,'String','3');
+    set(fsm.handles.Tspeedmaintainmeanadd,'String','0');
+    set(fsm.handles.Tstimdurationmin,'String','2');
+    set(fsm.handles.Tstimdurationmeanadd,'String','0');
+    set(fsm.handles.Trewdavailable,'String','0');
+    set(fsm.handles.oridifflist,'String','90 180 270 360 450 540 630 720');
+    set(fsm.handles.spdrnglow,'String','-5');
+    set(fsm.handles.Textrawait,'String','0');
+    set(fsm.handles.prewd,'String','1');
+    set(fsm.handles.autorewd, 'Value',0)
+    fsm.twomonitors = 0;
+else
+    set(fsm.handles.setOrimapParams,'BackgroundColor','cyan')
+    set(fsm.handles.Tspeedmaintainmin,'String','2.8');
+    set(fsm.handles.Tspeedmaintainmeanadd,'String','0.4');
+    set(fsm.handles.Tstimdurationmin,'String','1.5');
+    set(fsm.handles.Tstimdurationmeanadd,'String','0.2');
+    set(fsm.handles.Trewdavailable,'String','1');
+    set(fsm.handles.oridifflist,'String','30 20 10');
+    set(fsm.handles.spdrnglow,'String','0');
+    set(fsm.handles.Textrawait,'String','0.5');
+    set(fsm.handles.prewd,'String','0.5');
+    set(fsm.handles.autorewd, 'Value',1)
+    fsm.twomonitors = 1;
+    
 end
 
