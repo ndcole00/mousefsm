@@ -2,6 +2,7 @@
 function rs_2eyes_retinotopy_flicker
 
 % (15*2*10*1.3)./60
+screenNumber=3;
 
 clear scrset TIMING STM;
 
@@ -95,7 +96,7 @@ try,
     screens=Screen('Screens');
 
     % Open double-buffered onscreen window with the requested stereo mode:
-    screenNumber=3;
+    
     stereoMode=0;
     [expWin,screenRect]=Screen('OpenWindow',screenNumber,STM.rgbgray,[],[],[],stereoMode);
     
