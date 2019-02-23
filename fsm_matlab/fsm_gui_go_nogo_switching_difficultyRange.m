@@ -753,7 +753,7 @@ fsm.stimtype = [];
 fsm.odour = [];
 fsm.outcome = [];
 fsm.oridiff = [];
-
+fsm.irrelgrating = [];
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
 fsm.spdRngLowByTrial = [];
@@ -1027,11 +1027,13 @@ switch VISorODR
             fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
         end
         fsm.odour(fsm.trialnum+1) = NaN;
+        fsm.irrelgrating(fsm.trialnum+1) = NaN;
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
         set(fsm.handles.odour, 'String',['Odour: ']);
         
     case 2 % odour block
         fsm.VISorODR(fsm.trialnum+1) = 2;
+        fsm.blockORtbt(fsm.trialnum+1) = 0;
         if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
             fsm.stimtype(fsm.trialnum+1) = 3; % rewarded odr
             fsm.odour(fsm.trialnum+1) = 1;
