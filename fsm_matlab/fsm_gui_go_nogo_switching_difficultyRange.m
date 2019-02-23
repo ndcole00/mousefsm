@@ -1082,7 +1082,17 @@ if isequal(fsm.handles.setOrimapParams.BackgroundColor, [0 1 1])
     set(fsm.handles.Textrawait,'String','0');
     set(fsm.handles.prewd,'String','1');
     set(fsm.handles.autorewd, 'Value',0)
+    set(fsm.handles.blockORtbt, 'Value',2)
     fsm.twomonitors = 0;
+    
+    for f = 1:2 % doing it twice prevents strange behaviour
+                %Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
+                %if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+                Screen('FillRect',fsm.winL,255/2);
+                Screen('FillRect',fsm.winR,255/2);
+                Screen('Flip', fsm.winL, [],[],[],1);
+    end
+            
 else
     set(fsm.handles.setOrimapParams,'BackgroundColor','cyan')
     set(fsm.handles.Tspeedmaintainmin,'String','2.8');
@@ -1095,6 +1105,7 @@ else
     set(fsm.handles.Textrawait,'String','0.5');
     set(fsm.handles.prewd,'String','0.5');
     set(fsm.handles.autorewd, 'Value',1)
+    set(fsm.handles.blockORtbt, 'Value',1)
     fsm.twomonitors = 1;
     
 end

@@ -1,4 +1,4 @@
-
+ 
 #include <Encoder.h>
 // Change these two numbers to the pins connected to your encoder.
 Encoder myEnc(1, 0);// (0,1) or (1,0) depending on direction of wheel motion
