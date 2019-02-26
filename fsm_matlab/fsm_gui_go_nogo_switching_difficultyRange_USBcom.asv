@@ -355,7 +355,7 @@ fsm.handles.speedMonitorFlag = uicontrol('Parent',fsm.handles.f,'Units','normali
 
 % Single or double monitor
 fsm.handles.twomonitors = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-    'Position', [0.48 0.8 0.13 0.04],'String','Two Monitors','Callback', @twoMonitor_callback, ...
+    'Position', [0.48 0.8 0.13 0.04],'String','Two Monitors','Callback', @twoMonitorToggle, ...
     'Value',1,'FontSize',10);
 
 % Grating orientation
@@ -998,20 +998,13 @@ else
     fprintf(fsm.ard,'%s','W');
 end
 
-
-function twoMonitor_callback(src,eventdata)
-global fsm
-if get(fsm.handles.twomonitors, 'Value') == 1
-    fsm.twomonitors = 1;
-    fprintf('Two monitors\n')
-else
-    fsm.twomonitors = 0;
-    fprintf('One monitor\n')
+function 
+fsm.twomonitors = 0;
+    
     for f = 1:2 % doing it twice prevents strange behaviour
-        %Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
-        %if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
-        Screen('FillRect',fsm.winL,255/2);
-        Screen('FillRect',fsm.winR,255/2);
-        Screen('Flip', fsm.winL, [],[],[],1);
+                %Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
+                %if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+                Screen('FillRect',fsm.winL,255/2);
+                Screen('FillRect',fsm.winR,255/2);
+                Screen('Flip', fsm.winL, [],[],[],1);
     end
-end

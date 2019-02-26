@@ -2,6 +2,7 @@
 // Adil Khan, Basel 2016
 // This version uses binary format for digi out
 // 20170819 uses digital bit for trial end instead of serial
+// This uses analog out at pin 23 PWM
 
 #include <Encoder.h>
 // Change these two numbers to the pins connected to your encoder.
@@ -14,6 +15,7 @@ int digioutPins[] = {
   2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 }; // 2 is rewd valve, least significant bit
 const int Npins = 11;
+int analogoutPin = 23; // for PWM of laser power
 int runfsm = 0;
 int spdRngHi;
 int spdRngLo;
@@ -28,6 +30,7 @@ void setup() {
     pinMode(digioutPins[thisPin], OUTPUT);
   }
   pinMode(ledPin, OUTPUT);
+  pinMode(analogoutPin, OUTPUT);
   Serial.setTimeout(10);
   analogWriteResolution(12);
 }
@@ -158,6 +161,11 @@ void loop()
         digitalWrite(digioutPins[i], val);
       }
 
+      // send analog out for PWM of laser
+      if (nCols == 7) {
+      analogWrite(analogoutPin, stm[state][6]);
+      }
+      
       // send the new state to matlab
       //Serial.println('S');
       //Serial.println(state);

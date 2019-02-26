@@ -4,18 +4,19 @@
 % 20160912 switches from go nogo task to odr discrim
 % 20161102 used binary format for digiout
 % 20170819 uses teensy digital line 12 for trial end instead of serial
-% 20181206 uses USB serial commands to send all info from Teensy
+% 20161103 PWM for control of laser power, extra column on stm
 
-function fsm_gui_go_nogo_switching_difficultyRange_USBcom()
+function fsm_gui_go_nogo_switching_difficultyRange_opto()
 
 close all
 clearvars -global fsm
 global fsm
+
 % Initialise
 try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
-fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
+fsm.TeensyCode = 'fsm_gng_switching.ino';
 fsm.savedir = 'C:\Data\FSM_log\';
 fsm.token = 'M99_B1';
 fsm.fname = '';
@@ -60,6 +61,18 @@ fsm.oridifflist = [30 20 10];
 fsm.stimPosOffset = 0; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
 fsm.nTrialsPerBlock = 40;
 fsm.blockchangetrial = 1;
+fsm.laserpower = [];
+fsm.laserpoweroptions = '4,20,33,100';
+powers = str2num(fsm.laserpoweroptions);
+fsm.plist = randperm(length(powers));
+fsm.outcome = [];
+
+fsm.TspeedMaintainMinByTrial = [];
+fsm.TspeedMaintainMeanAddbyTrial = [];
+fsm.spdRngLowByTrial = [];
+fsm.punishTByTrial = [];
+fsm.pirrelByTrial = [];
+fsm.prewdByTrial = [];
 %--------------------------------------------------------------------------
 % make GUI
 
@@ -76,9 +89,13 @@ fsm.handles.ax(2)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0
 title('Performance');
 hold(fsm.handles.ax(2),'on');
 
-fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Visible','off','Units','normalized','Position',[0.35 .03 0.27 0.24]);
+% I think I may be overwriting this figure with the performance by orientation plot
+fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Units','normalized','Visible','off','Position',[0.35 .03 0.27 0.24]);
 %try imshow ('M:\Adil\FSM\contrast change task schematic.jpg');end
 hold(fsm.handles.ax(3),'on');
+
+fsm.handles.ax(4)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.38 0.05 0.22 0.18]);
+title('Performance by orientation');
 
 % savedir
 fsm.handles.savedir = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -139,7 +156,7 @@ fsm.handles.Tirreldelay = uicontrol('Parent',fsm.handles.f,'Units','normalized',
     'String',fsm.Tirreldelay,'FontSize',10);
 
 % T speed maintain min
-uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+fsm.handles.Tspeedmaintainmin_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.02 0.6 0.2 0.04],...
     'String','T speed maintain min','FontSize',10);
 fsm.handles.Tspeedmaintainmin = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
@@ -286,7 +303,19 @@ fsm.handles.nTrialsPerBlock = uicontrol('Parent',fsm.handles.f,'Units','normaliz
     'Position', [0.56 0.45 0.05 0.04],...
     'String',fsm.nTrialsPerBlock,'FontSize',10);
 
+% Punish time
+uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.48 0.40 0.07 0.04],...
+    'String','Punish T','FontSize',10);
+fsm.handles.punishT = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.56 0.40 0.05 0.04],...
+    'String',fsm.punishT,'FontSize',10);
 
+% Vis or odr block
+fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+    'Position', [0.35 0.40 0.12 0.04],'String',{'Visual','Odour'},...
+    'Value',1,'FontSize',10);
+%
 % % Ntrials with cue
 % uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
 %     'Position', [0.42 0.5 0.1 0.04],...%[0.35 0.5 0.08 0.04]
@@ -302,29 +331,31 @@ fsm.handles.nTrialsPerBlock = uicontrol('Parent',fsm.handles.f,'Units','normaliz
 % fsm.handles.Tminorientationview = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
 %     'Position', [0.53 0.45 0.08 0.04],...
 %     'String',fsm.Tminorientationview,'FontSize',10);
+% Laser power options
+fsm.handles.laserpoweroptions_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.8 0.16 0.04],...
+    'String','Laser powers (%):0','FontSize',10);
+fsm.handles.laserpoweroptions = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.52 0.8 0.09 0.04],...
+    'String',fsm.laserpoweroptions,'FontSize',10);
+ 
+% % Laser power
+% fsm.handles.laserpower = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+%     'Position', [0.35 0.40 0.13 0.04],...
+%     'String','Laser power: 0','FontSize',10);
 %
 % % Type of session: left/right OR front/back
 % fsm.handles.lrORfb = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
 %     'Position', [0.35 0.40 0.13 0.04],'String',{'Left/Right','Front/Back'},...
 %     'Value',1,'FontSize',10);
 %
-% Vis or odr block
-fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-    'Position', [0.49 0.40 0.12 0.04],'String',{'Visual','Odour'},...
-    'Value',1,'FontSize',10);
-%
+
 % % Both sides Ori change?
 % fsm.handles.bothsides = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
 %     'Position', [0.35 0.25 0.12 0.04],'String','Both sides change?',...
 %     'Value',1,'FontSize',10);
 %
-% Punish time
-uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.45 0.25 0.1 0.04],...
-    'String','Punish T','FontSize',10);
-fsm.handles.punishT = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.56 0.25 0.05 0.04],...
-    'String',fsm.punishT,'FontSize',10);
+
 
 %%% Indicators %%%
 
@@ -335,12 +366,12 @@ fsm.handles.fname = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style
 
 % Trial number
 fsm.handles.trialnum = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.85 0.26 0.04],...
+    'Position', [0.35 0.85 0.12 0.04],...
     'String',['Trial Number: ' num2str(fsm.trialnum)],'FontSize',10,'HorizontalAlignment','left');
 
 % Odour
 fsm.handles.odour = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.8 0.12 0.04],...
+    'Position', [0.48 0.85 0.13 0.04],...
     'String',['Odour: '],'FontSize',10,'HorizontalAlignment','left');
 
 % Auto reward
@@ -353,14 +384,14 @@ fsm.handles.speedMonitorFlag = uicontrol('Parent',fsm.handles.f,'Units','normali
     'Position', [0.48 0.75 0.13 0.04],'String','Speed Monitor',...
     'Value',0,'FontSize',10);
 
-% Single or double monitor
-fsm.handles.twomonitors = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-    'Position', [0.48 0.8 0.13 0.04],'String','Two Monitors','Callback', @twoMonitor_callback, ...
-    'Value',1,'FontSize',10);
+% Only laser
+fsm.handles.onlylaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.48 0.7 0.1 0.04],'String','Only laser',...
+    'Value',0,'FontSize',10);
 
 % Grating orientation
 fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.7 0.26 0.04],...
+    'Position', [0.35 0.7 0.12 0.04],...
     'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
 
 % % State
@@ -371,18 +402,25 @@ fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized',
 %%%%% Buttons%%%%
 % Start button
 fsm.handles.start = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.35 0.3 0.13 0.10],...
+    'Position', [0.35 0.33 0.13 0.07],...
     'String','Start','BackgroundColor', 'green','Callback', @call_start);
 
 % Stop button
 fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.49 0.3 0.12 0.10],...
+    'Position', [0.49 0.33 0.12 0.07],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
 % Toggle valve button
 fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.45 0.2 0.16 0.04],...
+    'Position', [0.45 0.28 0.16 0.04],...
     'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
+
+% Set parameters for orimap
+fsm.handles.setOrimapParams = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.35 0.28 0.1 0.04],...
+    'String','OriMap params', 'BackgroundColor', 'cyan','Callback', @call_setOrimapParams);
+
+
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -392,7 +430,6 @@ fsm.ard=serial(fsm.comport,'BaudRate',9600); % create serial communication objec
 set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
 fprintf('serial port opened\n')
-
 
 % check if correct teensy code is loaded
 fprintf(fsm.ard,'%s','T');
@@ -406,7 +443,7 @@ else
 end
 
 % initiate the stim machine;
-stim_machine_init_go_nogo_switching_USBcom
+stim_machine_init_go_nogo_switching
 figure(fsm.handles.f)
 
 % clear the buffer
@@ -424,6 +461,8 @@ set(fsm.handles.toggleRewdValve,'enable','off')
 set(fsm.handles.stop,'enable','on')
 cla(fsm.handles.ax(2));
 cla(fsm.handles.ax(3));
+powers = str2num(get(fsm.handles.laserpoweroptions,'string'));
+fsm.plist = randperm(length(powers));
 Xrng_speed_plot;
 drawnow;pause(0.00000001)
 
@@ -453,6 +492,8 @@ while keeprunning
     pT    = str2num(get(fsm.handles.punishT,'string'));
     fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
     pL    = str2num(get(fsm.handles.plaser,'string'));
+    % put current values in textboxes
+    set(fsm.handles.Tspeedmaintainmin_label,'string',['T speed maintain min (' sprintf('%.2f',spdT) ')'])
     %     fsm.orientationchange = str2num(get(fsm.handles.orientationchange,'String'));
     %     if ~fsm.iscuetrial ; cueT = 0; end
     %     fsm.difflist = str2num(get(fsm.handles.orientationchangelist,'String'));
@@ -528,35 +569,56 @@ while keeprunning
             AR = 9; % no auto reward
             
     end
+    pwr = 0;
     
-    %Stim = Stim + S; % Generic stim on signal added
+        % if only laser trials
+    if get(fsm.handles.onlylaser,'Value')
+        Stim = Bln;Rew = Bln; iStim = Bln; % no stim signals
+        pL = 1; %Force laser trials
+        set(fsm.handles.autorewd, 'Value',0)
+    end
     
     if rand < pL % laser trial
         LR = 12;
-        Stim = Stim + L;
+        if Stim~=(Odr1)&& Stim~=(Odr2);Stim = Stim + L;end % no laser on odor
         Rew = Rew + L;
+        iStim = iStim + L;
+        
+        % choose laser power (PWM)
+        powers = str2num(get(fsm.handles.laserpoweroptions,'string'));
+        if rem(fsm.trialnum,length(powers)) == 0
+            fsm.plist = randperm(length(powers));
+        end
+        pwr = powers(fsm.plist(rem(fsm.trialnum,length(powers))+1));
+        
+        fsm.laserpower(fsm.trialnum+1) = pwr;
+        set (fsm.handles.laserpoweroptions_label,'String',['Laser powers (%):' num2str(pwr)]);
+        pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
+        
     else
         LR = IR;
+        set (fsm.handles.laserpower,'String',['Laser power: 0' ]);
     end
-    Lon = L;
+    Lon = L+Bln;
     
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
         
-%  spd in   spd out     lick    Tup       Timer   digiOut
-    0           0        0       1         0.01     Bln             ;...% state 0 init
-    2           1        1       1         100      Bln             ;...% state 1 wait for speed in
-    2           1        2       LR        spdT     Bln             ;...% state 2 maintain speed
-    3           3        fa      4         stmT     Stim            ;...% state 3 Stim on, refractory period
-    4           4        lok1    AR        waitT    Stim            ;...% state 4 Stim on, reward zone, wait for lick
-    5           5        5       6         rewT     Rew             ;...% state 5 Stim on, reward on
-    6           6        6       9         extraT   Stim            ;...% state 6 Stim on, extra view
-    7           7        7       6         rewT     Rew             ;...% state 7 auto reward
-    8           8        8       4         pT       Stim            ;...% state 8 punish time
-    9           9        9       99        iti      Bln             ;...% state 9 ITI
-    10          10       10      11        igT      iStim           ;...% state 10 irrel grating
-    11          11       11      3         iwT      Bln             ;...% state 11 delay after irrel grating
-    12          12       12      IR        .1       Lon             ;...% state 12 laser on pre stim
-    13          13       13      9         .01      Bln             ;...% state 13 Miss 
+%  spd in   spd out     lick    Tup       Timer   digiOut   AnalogOut
+    0           0        0       1         0.01     Bln        0      ;...% state 0 init
+    14          1        1       1         100      Bln        0      ;...% state 1 wait for speed in
+    2           1        2       LR        spdT     Bln        0      ;...% state 2 maintain speed
+    3           3        fa      4         stmT     Stim       pwr    ;...% state 3 Stim on, refractory period
+    4           4        lok1    AR        waitT    Stim       pwr    ;...% state 4 Stim on, reward zone, wait for lick
+    5           5        5       6         rewT     Rew        pwr    ;...% state 5 Stim on, reward on
+    6           6        6       9         extraT   Stim       pwr    ;...% state 6 Stim on, extra view
+    7           7        7       6         rewT     Rew        pwr    ;...% state 7 auto reward
+    8           8        8       4         pT       Stim       pwr    ;...% state 8 punish time
+    9           9        9       99        iti      Bln        0      ;...% state 9 ITI
+    10          10       10      11        igT      iStim      pwr    ;...% state 10 irrel grating
+    11          11       11      3         iwT      Bln        0      ;...% state 11 delay after irrel grating
+    12          12       12      IR        .1       Lon        pwr    ;...% state 12 laser on pre stim
+    13          13       13      9         .01      Bln        0      ;...% state 13 Miss 
+    14          14       14      2         .2       Bln        0      ;...% state 14 to prevent too quick transitins
     ];
 
 stm (:,5) = round(stm(:,5)*1000); % sec to ms
@@ -634,7 +696,8 @@ switch rcvd
                 break
             end
             % check for stimulus change
-            stim_machine_go_nogo_switching_USBcom
+            stim_machine_go_nogo_switching
+            
           
             if fsm.trialend == 1 % set by stim machine
                 trialend = 1;
@@ -648,22 +711,21 @@ switch rcvd
                 end
                 fsm.triallog{fsm.trialnum} = triallog;
                 fprintf('%s\n',fsm.triallog{fsm.trialnum});
-                findoutcome(triallog)
-                fsm.trialend = 0;
+                findoutcome(triallog)            
             
             % get speed only if SpeedMonitor checkbox is on
             elseif speedMonitorFlag
-                if fsm.spdAvailable
-                    rcvd2 = fsm.spd;
+                if fsm.ard.BytesAvailable
+                    rcvd2 = fscanf(fsm.ard,'%s');
                     olddat = get(fsm.handles.spdplot,'ydata');
                     newdat = cat(2,olddat(2:end),str2num(rcvd2));
                     set(fsm.handles.spdplot,'ydata',newdat);
                     set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
                     drawnow
                     fsm.instspeed = str2num(rcvd2);
-                    fsm.spdAvailable = 0;
                 end
             end
+            
             
         end
 end
@@ -682,11 +744,36 @@ function call_stop(src,eventdata)
 global fsm
 fsm.stop = 1;
 
+% I think this might be the most appropriate place to update all the variables that are preloaded and then not changed.
+fsm.token = get(fsm.handles.token,'string');
+fsm.Tspeedmaintainmeanadd = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string'));
+fsm.Tstimdurationmeanadd = str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
+fsm.Tspeedmaintainmin = str2num(get(fsm.handles.Tspeedmaintainmin,'string'));
+fsm.Tstimdurationmin = str2num(get(fsm.handles.Tstimdurationmin,'string'));
+fsm.nTrialsPerBlock = str2num(get(fsm.handles.nTrialsPerBlock,'string'));
+fsm.Trewdavailable = str2num(get(fsm.handles.Trewdavailable,'string'));
+fsm.lickthreshold = str2num(get(fsm.handles.lickthreshold,'string'));
+fsm.Tirrelgrating = str2num(get(fsm.handles.Tirrelgrating,'string'));
+fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
+fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
+fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
+fsm.Tirreldelay = str2num(get(fsm.handles.Tirreldelay,'string'));
+fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
+fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
+fsm.spdrnglow = str2num(get(fsm.handles.spdrnglow,'string'));
+fsm.extrawait = str2num(get(fsm.handles.Textrawait,'string'));
+fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
+fsm.punishT = str2num(get(fsm.handles.punishT,'string'));
+fsm.pirrel = str2num(get(fsm.handles.pirrel,'string'));
+fsm.prewd = str2num(get(fsm.handles.prewd,'string'));
+fsm.rewd = str2num(get(fsm.handles.rewd,'string'));
+fsm.Titi = str2num(get(fsm.handles.Titi,'string'));
+
 fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
 if ~isempty(fsm.triallog) % if its the first time you click stop
-    tic;while ~fsm.ard.BytesAvailable;if toc>2;break;end;end% wait for data with 2s timeout
+    tic;while ~fsm.ard.BytesAvailable;if toc>2;break;end;end % wait for data with 2s timeout
     try
         stopsignal = '';triallog = '';
         while ~strcmp(stopsignal,'d')% from 'stopped'
@@ -702,8 +789,8 @@ if ~isempty(fsm.triallog) % if its the first time you click stop
     save(fsm.fname,'fsm');
     fprintf('Logfile saved\n')
     fsm = fsm_temp; clear fsm_temp;
-    
 end
+
 % reset
 fsm.trialnum = 0;
 fsm.triallog = {};
@@ -712,8 +799,17 @@ fsm.VISorODR = [];
 fsm.blockORtbt = [];
 fsm.stimtype = [];
 fsm.odour = [];
+fsm.laserpower = [];
 fsm.outcome = [];
-fsm.trialend = 0;
+fsm.oridiff = [];
+fsm.irrelgrating = [];
+fsm.TspeedMaintainMinByTrial = [];
+fsm.TspeedMaintainMeanAddbyTrial = [];
+fsm.spdRngLowByTrial = [];
+fsm.punishTByTrial = [];
+fsm.pirrelByTrial = [];
+fsm.prewdByTrial = [];
+
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
 
@@ -728,7 +824,8 @@ try Screen('CloseAll');
 catch; fprintf('Did not stop PTB cleanly\n');end
 try fclose(fsm.ard); fprintf('serial port closed\n')% end communication with arduino
 catch; fprintf('Did not stop teensy cleanly, should reboot\n');end
-
+try delete(fsm.s);
+catch; fprintf('Did not stop NI DAQ cleanly\n');end
 delete(gcf);
 
 function call_change_savedir(src,eventdata)
@@ -902,6 +999,22 @@ if length(correcttrials)>=5
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
+% Making a plot of the performance dependent on orientation.
+% - Need to make it solely for visual block trials.
+oriPerf= cell(720,1);
+for j = 1:length(correcttrials)
+if fsm.VISorODR(j) == 1
+    oriPerf{fsm.oridiff(j)}(end+1) = correcttrials(j);
+end
+end
+oriPerfIndex = find(~cellfun('isempty', oriPerf) & cellfun('length', oriPerf)>5); 
+oriPerfMean = cellfun(@mean, oriPerf, 'uni', 0);
+
+scatter(fsm.handles.ax(4), oriPerfIndex, [oriPerfMean{oriPerfIndex, :}])
+hold(fsm.handles.ax(4),'on');
+plot(fsm.handles.ax(4), oriPerfIndex,  [oriPerfMean{oriPerfIndex, :}])
+hold(fsm.handles.ax(4),'off');
+set(fsm.handles.ax(4),'ylim',[0 1],'xlim',[0 50]); 
 
 function choose_stim
 global fsm
@@ -910,6 +1023,12 @@ global fsm
 VISorODR   = get(fsm.handles.VISorODR,'Value');
 fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
 
+fsm.TspeedMaintainMinByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmin,'String'));
+fsm.TspeedMaintainMeanAddbyTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'String'));
+fsm.spdRngLowByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.spdrnglow,'String'));
+fsm.punishTByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.punishT,'String'));
+fsm.pirrelByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrel,'String'));
+fsm.prewdByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.prewd,'String'));
 
 switch VISorODR
     case 1 % visual block
@@ -957,11 +1076,13 @@ switch VISorODR
             fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
         end
         fsm.odour(fsm.trialnum+1) = NaN;
+        fsm.irrelgrating(fsm.trialnum+1) = NaN;
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
         set(fsm.handles.odour, 'String',['Odour: ']);
         
     case 2 % odour block
         fsm.VISorODR(fsm.trialnum+1) = 2;
+        fsm.blockORtbt(fsm.trialnum+1) = 0;
         if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
             fsm.stimtype(fsm.trialnum+1) = 3; % rewarded odr
             fsm.odour(fsm.trialnum+1) = 1;
@@ -998,20 +1119,45 @@ else
     fprintf(fsm.ard,'%s','W');
 end
 
-
-function twoMonitor_callback(src,eventdata)
+function call_setOrimapParams(src,eventdata)
 global fsm
-if get(fsm.handles.twomonitors, 'Value') == 1
-    fsm.twomonitors = 1;
-    fprintf('Two monitors\n')
-else
+if isequal(fsm.handles.setOrimapParams.BackgroundColor, [0 1 1])
+    set(fsm.handles.setOrimapParams,'BackgroundColor','red')
+    set(fsm.handles.Tspeedmaintainmin,'String','3');
+    set(fsm.handles.Tspeedmaintainmeanadd,'String','0');
+    set(fsm.handles.Tstimdurationmin,'String','2');
+    set(fsm.handles.Tstimdurationmeanadd,'String','0');
+    set(fsm.handles.Trewdavailable,'String','0');
+    set(fsm.handles.oridifflist,'String','90 180 270 360 450 540 630 720');
+    set(fsm.handles.spdrnglow,'String','-5');
+    set(fsm.handles.Textrawait,'String','0');
+    set(fsm.handles.prewd,'String','1');
+    set(fsm.handles.autorewd, 'Value',0)
+    set(fsm.handles.blockORtbt, 'Value',2)
     fsm.twomonitors = 0;
-    fprintf('One monitor\n')
+    
     for f = 1:2 % doing it twice prevents strange behaviour
-        %Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
-        %if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
-        Screen('FillRect',fsm.winL,255/2);
-        Screen('FillRect',fsm.winR,255/2);
-        Screen('Flip', fsm.winL, [],[],[],1);
+                %Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
+                %if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+                Screen('FillRect',fsm.winL,255/2);
+                Screen('FillRect',fsm.winR,255/2);
+                Screen('Flip', fsm.winL, [],[],[],1);
     end
+            
+else
+    set(fsm.handles.setOrimapParams,'BackgroundColor','cyan')
+    set(fsm.handles.Tspeedmaintainmin,'String','2.8');
+    set(fsm.handles.Tspeedmaintainmeanadd,'String','0.4');
+    set(fsm.handles.Tstimdurationmin,'String','1.5');
+    set(fsm.handles.Tstimdurationmeanadd,'String','0.2');
+    set(fsm.handles.Trewdavailable,'String','1');
+    set(fsm.handles.oridifflist,'String','30 20 10');
+    set(fsm.handles.spdrnglow,'String','0');
+    set(fsm.handles.Textrawait,'String','0.5');
+    set(fsm.handles.prewd,'String','0.5');
+    set(fsm.handles.autorewd, 'Value',1)
+    set(fsm.handles.blockORtbt, 'Value',1)
+    fsm.twomonitors = 1;
+    
 end
+
