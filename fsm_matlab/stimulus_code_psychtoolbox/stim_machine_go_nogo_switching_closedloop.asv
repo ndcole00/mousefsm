@@ -4,33 +4,13 @@ dbstop if error
 
 global fsm
 
-if get(fsm.handles.USBcom,'Value') == 0
+if get(fsm.handles.USBcom,'Value')
     
-    if fsm.trialnum ==0; return; end
-    fsm.teensyinput = fsm.s.inputSingleScan;
-    fsm.trialend = fsm.teensyinput(end);
-    fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
-else % USB com (for behaviour only boxes)
-    if ~isfield(fsm, 'teensyinput'); fsm.teensyinput = 0;fsm.trialend = 0;fsm.spdAvailable = 0; end
-    if fsm.ard.BytesAvailable
-        teensyinput = fscanf(fsm.ard,'%s');
-        if teensyinput == 'E' % teensy sending trial end signal
-            fsm.trialend = 1;
-            return
-        elseif teensyinput == 'S' % teensy sending speed
-            while ~fsm.ard.BytesAvailable;end
-            fsm.spd = fscanf(fsm.ard,'%s');
-            fsm.spdAvailable = 1;
-        else
-            fsm.teensyinput = teensyinput;
-            fsm.teensyinput = dec2bin(str2num(fsm.teensyinput));
-            if ~strcmp(fsm.teensyinput, '0')
-                fsm.teensyinput = fsm.teensyinput(end-2:end-1);% stim1 & 2 info on these bits
-                fsm.teensyinput = fsm.teensyinput -'0';% https://uk.mathworks.com/matlabcentral/answers/89526-binary-string-to-vector
-            end
-        end
-    end
-end
+if fsm.trialnum ==0; return; end
+fsm.teensyinput = fsm.s.inputSingleScan;
+fsm.trialend = fsm.teensyinput(end);
+fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
+else
     
 aspectratio = 1;
 

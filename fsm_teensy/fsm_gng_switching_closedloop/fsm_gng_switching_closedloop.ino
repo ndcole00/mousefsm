@@ -13,6 +13,8 @@ int spdRngLo;
 int trialnum = 0;
 int lickThreshold;
 const int Npins = 9;
+int USBcomFlag;
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -40,6 +42,7 @@ void loop()
   spdRngHi = Serial.parseInt();
   spdRngLo = Serial.parseInt();
   lickThreshold = Serial.parseInt();
+  USBcomFlag = Serial.parseInt();
   // send a signal to say its received
   Serial.println('C');
 
@@ -114,6 +117,7 @@ void loop()
       newPosition = myEnc.read();
       spd = (newPosition - oldPosition) * 62.83 / (4 * spdBin);
       oldPosition = newPosition;
+      Serial.println('S');
       Serial.println(spd);
       Serial.send_now();
       analogWrite(A14, spd * 20 + 500);
@@ -130,6 +134,10 @@ void loop()
 
     if (stateJustChanged == 1) {
       // send digiout
+      if USBcomFlag ==1 {
+      int dig = stm[state][5];
+      Serial.println(dig);
+      }
 
       switch (stm[state][5]) { // remember zero indexing
         case 0: // all off
@@ -193,9 +201,9 @@ void loop()
           */
       }
       // send the new state to matlab
-      Serial.println('S');
-      Serial.println(state);
-      Serial.send_now();
+      //Serial.println('S');
+      //Serial.println(state);
+      //Serial.send_now();
       StartTime = millis();
       StartPosition = myEnc.read();
       stateJustChanged = 0;

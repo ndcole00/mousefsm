@@ -333,11 +333,6 @@ fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized',
     'Position', [0.35 0.7 0.26 0.04],...
     'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
 
-% USBcom
-fsm.handles.USBcom = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-    'Position', [0.35 0.65 0.26 0.04],'String','USBcom?',...
-    'Value',1,'FontSize',10);
-
 % State
 fsm.handles.state = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.35 0.5 0.06 0.04],...
@@ -501,7 +496,7 @@ threshold = round((1024/3.3)*str2num(get(fsm.handles.lickthreshold,'string')));
 fprintf(fsm.ard,'%s\n',num2str(threshold));
 
 USBcomFlag = get(fsm.handles.USBcom,'Value');
-fprintf(fsm.ard,'%s',num2str(USBcomFlag));
+fprintf(fsm.ard,'%s',num2str(speedMonitorFlag));
 
 % wait for signal that its been received
 rcvd = '';
