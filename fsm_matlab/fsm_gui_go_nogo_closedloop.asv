@@ -333,6 +333,11 @@ fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized',
     'Position', [0.35 0.7 0.26 0.04],...
     'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
 
+% USBcom
+fsm.handles.USBcom = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.35 0.65 0.26 0.04],'String','USBcom?',...
+    'Value',1,'FontSize',10);
+
 % State
 fsm.handles.state = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.35 0.5 0.06 0.04],...
@@ -496,7 +501,7 @@ threshold = round((1024/3.3)*str2num(get(fsm.handles.lickthreshold,'string')));
 fprintf(fsm.ard,'%s\n',num2str(threshold));
 
 USBcomFlag = get(fsm.handles.USBcom,'Value');
-fprintf(fsm.ard,'%s',num2str(speedMonitorFlag));
+fprintf(fsm.ard,'%s',num2str(USBcomFlag));
 
 % wait for signal that its been received
 rcvd = '';
@@ -561,10 +566,10 @@ switch rcvd
                             %                         updateRTplot
                             %                         fsm.changelist = [fsm.changelist changelist];
                             %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
-                        elseif rcvd2 == 'S'; % its sending the state
-                            while ~fsm.ard.BytesAvailable;end
-                            fsm.state = str2num(fscanf(fsm.ard,'%s'));
-                            set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
+%                         elseif rcvd2 == 'S'; % its sending the state
+%                             while ~fsm.ard.BytesAvailable;end
+%                             fsm.state = str2num(fscanf(fsm.ard,'%s'));
+%                             set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
                             
                         else % else its sending the speed
                             olddat = get(fsm.handles.spdplot,'ydata');
@@ -590,7 +595,7 @@ switch rcvd
                         end
                         fsm.triallog{fsm.trialnum} = triallog;
                         fprintf('%s\n',fsm.triallog{fsm.trialnum});
-                        findoutcome(triallog)
+                        %findoutcome(triallog)
                         fsm.trialend = 0;
                         
                         % get speed only if SpeedMonitor checkbox is on

@@ -566,18 +566,17 @@ switch rcvd
                             %                         updateRTplot
                             %                         fsm.changelist = [fsm.changelist changelist];
                             %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
-                        elseif rcvd2 == 'S'; % its sending the state
+                        elseif rcvd2 == 'S'; % its sending the speed
                             while ~fsm.ard.BytesAvailable;end
-                            fsm.state = str2num(fscanf(fsm.ard,'%s'));
-                            set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
+                            fsm.instspeed = str2num(fscanf(fsm.ard,'%s'));
                             
-                        else % else its sending the speed
+                       
                             olddat = get(fsm.handles.spdplot,'ydata');
-                            newdat = cat(2,olddat(2:end),str2num(rcvd2));
+                            newdat = cat(2,olddat(2:end),fsm.instspeed);
                             set(fsm.handles.spdplot,'ydata',newdat);
                             set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
                             drawnow
-                            fsm.instspeed = str2num(rcvd2);
+                            
                             
                         end
                         
@@ -595,7 +594,7 @@ switch rcvd
                         end
                         fsm.triallog{fsm.trialnum} = triallog;
                         fprintf('%s\n',fsm.triallog{fsm.trialnum});
-                        findoutcome(triallog)
+                        %findoutcome(triallog)
                         fsm.trialend = 0;
                         
                         % get speed only if SpeedMonitor checkbox is on

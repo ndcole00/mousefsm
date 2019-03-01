@@ -12,6 +12,7 @@ if get(fsm.handles.USBcom,'Value') == 0
     fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
 else % USB com (for behaviour only boxes)
     if ~isfield(fsm, 'teensyinput'); fsm.teensyinput = 0;fsm.trialend = 0;fsm.spdAvailable = 0; end
+    if ~isfield(fsm, 'spdAvailable');fsm.spdAvailable = 0; end
     if fsm.ard.BytesAvailable
         teensyinput = fscanf(fsm.ard,'%s');
         if teensyinput == 'E' % teensy sending trial end signal
@@ -22,12 +23,20 @@ else % USB com (for behaviour only boxes)
             fsm.spd = fscanf(fsm.ard,'%s');
             fsm.spdAvailable = 1;
         else
-            fsm.teensyinput = teensyinput;
-            fsm.teensyinput = dec2bin(str2num(fsm.teensyinput));
-            if ~strcmp(fsm.teensyinput, '0')
-                fsm.teensyinput = fsm.teensyinput(end-2:end-1);% stim1 & 2 info on these bits
-                fsm.teensyinput = fsm.teensyinput -'0';% https://uk.mathworks.com/matlabcentral/answers/89526-binary-string-to-vector
+            switch teensyinput
+                case '0' 
+                    fsm.teensyinput = 0;
+                case '2'
+                    fsm.teensyinput = [1 0];
+                case '3'
+                    fsm.teensyinput = [0 1];
             end
+            
+            %fsm.teensyinput = dec2bin(str2num(fsm.teensyinput));
+            %if ~strcmp(fsm.teensyinput, '0')
+                %fsm.teensyinput = fsm.teensyinput(end-1:end);% stim1 & 2 info on these bits
+                %fsm.teensyinput = fsm.teensyinput -'0';% https://uk.mathworks.com/matlabcentral/answers/89526-binary-string-to-vector
+            %end
         end
     end
 end

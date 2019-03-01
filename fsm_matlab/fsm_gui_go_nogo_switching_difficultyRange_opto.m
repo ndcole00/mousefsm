@@ -576,6 +576,7 @@ while keeprunning
         Stim = Bln;Rew = Bln; iStim = Bln; % no stim signals
         pL = 1; %Force laser trials
         set(fsm.handles.autorewd, 'Value',0)
+        fa = 3;
     end
     
     if rand < pL % laser trial
@@ -597,7 +598,7 @@ while keeprunning
         
     else
         LR = IR;
-        set (fsm.handles.laserpower,'String',['Laser power: 0' ]);
+        set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
     end
     Lon = L+Bln;
     

@@ -134,7 +134,7 @@ void loop()
 
     if (stateJustChanged == 1) {
       // send digiout
-      if USBcomFlag ==1 {
+      if (USBcomFlag ==1) {
       int dig = stm[state][5];
       Serial.println(dig);
       }
