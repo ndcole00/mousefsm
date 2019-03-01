@@ -354,6 +354,13 @@ fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.49 0.3 0.12 0.10],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
+% continue button
+fsm.handles.continue = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.35 0.2 0.28 0.20],...
+    'String','Choose USBcom option then press enter','BackgroundColor', [.8 .8 .8]);
+input('Press enter');
+delete(fsm.handles.continue)
+set(fsm.handles.USBcom,'enable','off')
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -376,7 +383,11 @@ else
 end
 
 % initiate the stim machine;
-stim_machine_init_go_nogo_switching
+if get(fsm.handles.USBcom,'Value')
+    stim_machine_init_go_nogo_switching_USBcom
+else
+    stim_machine_init_go_nogo_switching
+end
 figure(fsm.handles.f)
 
 % clear the buffer

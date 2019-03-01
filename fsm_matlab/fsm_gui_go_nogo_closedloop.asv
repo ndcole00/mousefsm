@@ -354,6 +354,12 @@ fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.49 0.3 0.12 0.10],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
+% continue button
+fsm.handles.continue = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.35 0.2 0.23 0.20],...
+    'String','Choose USBcom option then press enter','BackgroundColor', [.8 .8 .8]);
+dum = input(Press ente;
+delete(fsm.handles.continue)
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -376,7 +382,11 @@ else
 end
 
 % initiate the stim machine;
-stim_machine_init_go_nogo_switching
+if fsm.handles.USBcom
+    stim_machine_init_go_nogo_switching_USBcom
+else
+    stim_machine_init_go_nogo_switching
+end
 figure(fsm.handles.f)
 
 % clear the buffer
@@ -566,18 +576,17 @@ switch rcvd
                             %                         updateRTplot
                             %                         fsm.changelist = [fsm.changelist changelist];
                             %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
-%                         elseif rcvd2 == 'S'; % its sending the state
-%                             while ~fsm.ard.BytesAvailable;end
-%                             fsm.state = str2num(fscanf(fsm.ard,'%s'));
-%                             set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
+                        elseif rcvd2 == 'S'; % its sending the speed
+                            while ~fsm.ard.BytesAvailable;end
+                            fsm.instspeed = str2num(fscanf(fsm.ard,'%s'));
                             
-                        else % else its sending the speed
+                       
                             olddat = get(fsm.handles.spdplot,'ydata');
-                            newdat = cat(2,olddat(2:end),str2num(rcvd2));
+                            newdat = cat(2,olddat(2:end),fsm.instspeed);
                             set(fsm.handles.spdplot,'ydata',newdat);
                             set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
                             drawnow
-                            fsm.instspeed = str2num(rcvd2);
+                            
                             
                         end
                         
