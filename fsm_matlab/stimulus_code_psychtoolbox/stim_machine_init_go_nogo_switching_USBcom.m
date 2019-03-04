@@ -31,7 +31,6 @@ try
     fsm.twomonitors = 1;
     screenidL = 3;
     if fsm.twomonitors; screenidR = 2; end
-    
     % Setup imagingMode and window position/size depending on mode:
     rect = [];
     imagingMode = 0;
@@ -45,14 +44,14 @@ try
     
     if 1
         % Load gamma correction table
-        load ('C:\Users\KhanLab\Documents\MATLAB\FSM_KCL\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        load ('C:\Users\Behaviour Only B\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
         Screen('LoadNormalizedGammaTable', fsm.winL, GammaTable'*[1 1 1]);
         if fsm.twomonitors;Screen('LoadNormalizedGammaTable', fsm.winR, GammaTable'*[1 1 1]);end
     end
     % Screen parameters:
  
     scrset.disp             = [screenRect(3),screenRect(4)];
-    scrset.cntr             = [scrset.disp(1)/2,scrset.disp(2)/2];
+    scrset.cntr             = [scrset.disp(2)/2 + 200,scrset.disp(1)/2 + 200];
     scrset.fp               = scrset.cntr;
     
     scrset.monitor_distance = 20; % distance of monitor (cm)
@@ -71,7 +70,7 @@ try
 %     shiftperframe = Pixpersec/Refresh;
 %     
     % Initial stimulus params for the gabor patch:
-    res = [1440 1440];% monior y resolution 4*[323 323];
+    res = [1080 1080];% monior y resolution 4*[323 323];
     %fsm.sc = 250.0; % spatial const of gaussian
     fsm.sc = inf;%250.0; % spatial const of gaussian
     freq = 1/period;

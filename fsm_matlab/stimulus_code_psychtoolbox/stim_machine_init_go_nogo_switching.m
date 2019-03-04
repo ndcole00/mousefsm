@@ -29,8 +29,8 @@ try
     %screenidR = allscreens(2);
     % new machine
     fsm.twomonitors = 1;
-    screenidL = 2;
-    if fsm.twomonitors; screenidR = 3; end
+    screenidL = 3;
+    if fsm.twomonitors; screenidR = 2; end
     
     % Setup imagingMode and window position/size depending on mode:
     rect = [];
@@ -45,7 +45,7 @@ try
     
     if 1
         % Load gamma correction table
-        load ('C:\Users\KhanLab\Documents\MATLAB\FSM_KCL\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        load ('C:\Users\Behaviour Only B\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
         Screen('LoadNormalizedGammaTable', fsm.winL, GammaTable'*[1 1 1]);
         if fsm.twomonitors;Screen('LoadNormalizedGammaTable', fsm.winR, GammaTable'*[1 1 1]);end
     end

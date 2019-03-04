@@ -333,6 +333,11 @@ fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized',
     'Position', [0.35 0.7 0.26 0.04],...
     'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
 
+% USBcom
+fsm.handles.USBcom = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.35 0.65 0.26 0.04],'String','USBcom?',...
+    'Value',1,'FontSize',10);
+
 % State
 fsm.handles.state = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.35 0.5 0.06 0.04],...
@@ -349,6 +354,13 @@ fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
     'Position', [0.49 0.3 0.12 0.10],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
+% continue button
+fsm.handles.continue = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.35 0.2 0.28 0.20],...
+    'String','Choose USBcom option then press enter','BackgroundColor', [.8 .8 .8]);
+input('Press enter');
+delete(fsm.handles.continue)
+set(fsm.handles.USBcom,'enable','off')
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -371,7 +383,11 @@ else
 end
 
 % initiate the stim machine;
-stim_machine_init_go_nogo_switching
+if get(fsm.handles.USBcom,'Value')
+    stim_machine_init_go_nogo_switching_USBcom
+else
+    stim_machine_init_go_nogo_switching
+end
 figure(fsm.handles.f)
 
 % clear the buffer
@@ -493,8 +509,10 @@ fprintf(fsm.ard,'%s\n',num2str(fsm.spdrnglow));
 
 % send lick threshold; 3.3V is 1024
 threshold = round((1024/3.3)*str2num(get(fsm.handles.lickthreshold,'string')));
-fprintf(fsm.ard,'%s',num2str(threshold));
+fprintf(fsm.ard,'%s\n',num2str(threshold));
 
+USBcomFlag = get(fsm.handles.USBcom,'Value');
+fprintf(fsm.ard,'%s',num2str(USBcomFlag));
 
 % wait for signal that its been received
 rcvd = '';
@@ -538,41 +556,72 @@ switch rcvd
             % check for stimulus change
             stim_machine_go_nogo_switching_closedloop
             % check for end of trial
-            if fsm.ard.BytesAvailable
-                rcvd2 = fscanf(fsm.ard,'%s');%if rcvd2=='0';keyboard;end
-                if rcvd2 == 'E';
-                    trialend = 1;
-                    % read trial log
-                    while ~fsm.ard.BytesAvailable;end
-                    stopsignal = '';triallog = '';
-                    while ~strcmp(stopsignal,'d')% from 'End'
-                        partialtriallog = fscanf(fsm.ard,'%s');
-                        triallog = strcat(triallog,partialtriallog);
-                        stopsignal = partialtriallog(end);
+            switch get(fsm.handles.USBcom,'Value')
+                case 0 % not USBcom
+                    
+                    if fsm.ard.BytesAvailable
+                        rcvd2 = fscanf(fsm.ard,'%s');%if rcvd2=='0';keyboard;end
+                        if rcvd2 == 'E';
+                            trialend = 1;
+                            % read trial log
+                            while ~fsm.ard.BytesAvailable;end
+                            stopsignal = '';triallog = '';
+                            while ~strcmp(stopsignal,'d')% from 'End'
+                                partialtriallog = fscanf(fsm.ard,'%s');
+                                triallog = strcat(triallog,partialtriallog);
+                                stopsignal = partialtriallog(end);
+                            end
+                            fsm.triallog{fsm.trialnum} = triallog;
+                            fprintf('%s\n',fsm.triallog{fsm.trialnum});
+                            %                         [fsm.RT(fsm.trialnum), fsm.FAT{fsm.trialnum}, fsm.refractoryLT{fsm.trialnum},changelist] = findrectiontime(fsm.triallog{fsm.trialnum});
+                            %                         updateRTplot
+                            %                         fsm.changelist = [fsm.changelist changelist];
+                            %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
+                        elseif rcvd2 == 'S'; % its sending the speed
+                            while ~fsm.ard.BytesAvailable;end
+                            fsm.instspeed = str2num(fscanf(fsm.ard,'%s'));
+                            
+                       
+                            olddat = get(fsm.handles.spdplot,'ydata');
+                            newdat = cat(2,olddat(2:end),fsm.instspeed);
+                            set(fsm.handles.spdplot,'ydata',newdat);
+                            set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
+                            drawnow
+                            
+                            
+                        end
+                        
                     end
-                    fsm.triallog{fsm.trialnum} = triallog;
-                    fprintf('%s\n',fsm.triallog{fsm.trialnum});
-                    %                         [fsm.RT(fsm.trialnum), fsm.FAT{fsm.trialnum}, fsm.refractoryLT{fsm.trialnum},changelist] = findrectiontime(fsm.triallog{fsm.trialnum});
-                    %                         updateRTplot
-                    %                         fsm.changelist = [fsm.changelist changelist];
-                    %                         fsm.changelist_ori = [fsm.changelist_ori repmat(fsm.orientationchange(fsm.trialnum),1,length(changelist))];
-                elseif rcvd2 == 'S'; % its sending the state
-                    while ~fsm.ard.BytesAvailable;end
-                    fsm.state = str2num(fscanf(fsm.ard,'%s'));
-                    set(fsm.handles.state,'String',['State: ' num2str(fsm.state)]);
-                    
-                else % else its sending the speed
-                    olddat = get(fsm.handles.spdplot,'ydata');
-                    newdat = cat(2,olddat(2:end),str2num(rcvd2));
-                    set(fsm.handles.spdplot,'ydata',newdat);
-                    set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
-                    drawnow
-                    fsm.instspeed = str2num(rcvd2);
-                    
-                end
-                
+                case 1 % USBcom
+                    if fsm.trialend == 1 % set by stim machine
+                        trialend = 1;
+                        % read trial log
+                        while ~fsm.ard.BytesAvailable;end
+                        stopsignal = '';triallog = '';
+                        while ~strcmp(stopsignal,'d')% from 'End'
+                            partialtriallog = fscanf(fsm.ard,'%s');
+                            triallog = strcat(triallog,partialtriallog);
+                            stopsignal = partialtriallog(end);
+                        end
+                        fsm.triallog{fsm.trialnum} = triallog;
+                        fprintf('%s\n',fsm.triallog{fsm.trialnum});
+                        %findoutcome(triallog)
+                        fsm.trialend = 0;
+                        
+                        % get speed only if SpeedMonitor checkbox is on
+                    elseif 1%speedMonitorFlag
+                        if fsm.spdAvailable
+                            rcvd2 = fsm.spd;
+                            olddat = get(fsm.handles.spdplot,'ydata');
+                            newdat = cat(2,olddat(2:end),str2num(rcvd2));
+                            set(fsm.handles.spdplot,'ydata',newdat);
+                            set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
+                            drawnow
+                            fsm.instspeed = str2num(rcvd2);
+                            fsm.spdAvailable = 0;
+                        end
+                    end
             end
-            
             drawnow
         end
 end

@@ -3,10 +3,14 @@ dbstop if error
 % one iteration of the stim machine
 
 global fsm
-if fsm.trialnum ==0; return; end
-fsm.teensyinput = fsm.s.inputSingleScan;
-fsm.trialend = fsm.teensyinput(end);
-fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
+if ~isfield(fsm, 's')
+
+else
+    if fsm.trialnum ==0; return; end
+    fsm.teensyinput = fsm.s.inputSingleScan;
+    fsm.trialend = fsm.teensyinput(end);
+    fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
+end
 
 aspectratio = 1;
 
@@ -23,7 +27,7 @@ orientation = fsm.orientation(fsm.trialnum);
 % only one of these 5 should be on at any time
 % 1: Stim1 (rewarded), 2:Stim2 (non rewarded), 
 
-if max(fsm.teensyinput)==0;
+if max(fsm.teensyinput)==0
     trigg = 0;
     fsm.phase = 0; 
 else
