@@ -1,3 +1,4 @@
+
 % FSMteensy
 % Adil Khan, Basel 2016
 
@@ -5,7 +6,6 @@
 % 20161102 used binary format for digiout
 % 20170819 uses teensy digital line 12 for trial end instead of serial
 % 20181206 uses USB serial commands to send all info from Teensy
-
 function fsm_gui_go_nogo_switching_difficultyRange_USBcom()
 
 close all
@@ -16,7 +16,7 @@ try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
 fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
-fsm.savedir = 'C:\Data\FSM_log\';
+fsm.savedir = 'C:\Behavioural_data\FSM_log\';
 fsm.token = 'M99_B1';
 fsm.fname = '';
 fsm.spdrnghigh = 220;
