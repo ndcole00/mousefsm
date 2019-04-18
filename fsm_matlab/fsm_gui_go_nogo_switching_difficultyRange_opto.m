@@ -579,7 +579,7 @@ while keeprunning
         fa = 3;
     end
     
-    if rand < pL % laser trial
+    if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) % laser trial
         LR = 12;
         if Stim~=(Odr1)&& Stim~=(Odr2);Stim = Stim + L;end % no laser on odor
         Rew = Rew + L;
@@ -1098,8 +1098,10 @@ switch VISorODR
             % select irrelevant grating orientation
             rr = randi([1, length(fsm.oridifflist)]);
             fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
-            if rand < .5; fsm.orientation(fsm.trialnum+1) = 180-fsm.oridiff(fsm.trialnum+1)/2;
-            else fsm.orientation(fsm.trialnum+1) = 180+fsm.oridiff(fsm.trialnum+1)/2;end
+            fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
+            fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
+            if rand < .5; fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
+            else fsm.orientation(fsm.trialnum+1) = fsm.stim2ori; end
             
             set(fsm.handles.orientation, 'String',['Orientation: Irr ' num2str(fsm.orientation(fsm.trialnum+1))]);
         else
