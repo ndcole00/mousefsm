@@ -1,3 +1,4 @@
+
 % FSMteensy
 % Adil Khan, Basel 2016
 
@@ -5,7 +6,6 @@
 % 20161102 used binary format for digiout
 % 20170819 uses teensy digital line 12 for trial end instead of serial
 % 20181206 uses USB serial commands to send all info from Teensy
-
 function fsm_gui_go_nogo_switching_difficultyRange_USBcom()
 
 close all
@@ -16,7 +16,7 @@ try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
 fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
-fsm.savedir = 'C:\Data\FSM_log\';
+fsm.savedir = 'C:\Behavioural_data\FSM_log\';
 fsm.token = 'M99_B1';
 fsm.fname = '';
 fsm.spdrnghigh = 220;
@@ -60,6 +60,13 @@ fsm.oridifflist = [30 20 10];
 fsm.stimPosOffset = 0; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
 fsm.nTrialsPerBlock = 40;
 fsm.blockchangetrial = 1;
+
+fsm.TspeedMaintainMinByTrial = [];
+fsm.TspeedMaintainMeanAddbyTrial = [];
+fsm.spdRngLowByTrial = [];
+fsm.punishTByTrial = [];
+fsm.pirrelByTrial = [];
+fsm.prewdByTrial = [];
 %--------------------------------------------------------------------------
 % make GUI
 
@@ -79,6 +86,9 @@ hold(fsm.handles.ax(2),'on');
 fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Visible','off','Units','normalized','Position',[0.35 .03 0.27 0.24]);
 %try imshow ('M:\Adil\FSM\contrast change task schematic.jpg');end
 hold(fsm.handles.ax(3),'on');
+
+fsm.handles.ax(4)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.38 0.05 0.22 0.18]);
+title('Performance by orientation');
 
 % savedir
 fsm.handles.savedir = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -310,7 +320,7 @@ fsm.handles.nTrialsPerBlock = uicontrol('Parent',fsm.handles.f,'Units','normaliz
 %
 % Vis or odr block
 fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-    'Position', [0.49 0.40 0.12 0.04],'String',{'Visual','Odour'},...
+    'Position', [0.35 0.40 0.12 0.04],'String',{'Visual','Odour'},...
     'Value',1,'FontSize',10);
 %
 % % Both sides Ori change?
@@ -320,10 +330,10 @@ fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','St
 %
 % Punish time
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.45 0.25 0.1 0.04],...
+    'Position', [0.48 0.40 0.07 0.04],...
     'String','Punish T','FontSize',10);
 fsm.handles.punishT = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.56 0.25 0.05 0.04],...
+    'Position', [0.56 0.40 0.05 0.04],...
     'String',fsm.punishT,'FontSize',10);
 
 %%% Indicators %%%
@@ -335,12 +345,12 @@ fsm.handles.fname = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style
 
 % Trial number
 fsm.handles.trialnum = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.85 0.26 0.04],...
+    'Position', [0.35 0.85 0.12 0.04],...
     'String',['Trial Number: ' num2str(fsm.trialnum)],'FontSize',10,'HorizontalAlignment','left');
 
 % Odour
 fsm.handles.odour = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.8 0.12 0.04],...
+    'Position', [0.35 0.8 0.13 0.04],...
     'String',['Odour: '],'FontSize',10,'HorizontalAlignment','left');
 
 % Auto reward
@@ -371,17 +381,17 @@ fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized',
 %%%%% Buttons%%%%
 % Start button
 fsm.handles.start = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.35 0.3 0.13 0.10],...
+    'Position', [0.35 0.33 0.13 0.07],...
     'String','Start','BackgroundColor', 'green','Callback', @call_start);
 
 % Stop button
 fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.49 0.3 0.12 0.10],...
+    'Position', [0.49 0.33 0.12 0.07],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
 % Toggle valve button
 fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.45 0.2 0.16 0.04],...
+    'Position', [0.45 0.28 0.16 0.04],...
     'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
 %--------------------------------------------------------------------------
 % End make GUI
@@ -682,6 +692,31 @@ function call_stop(src,eventdata)
 global fsm
 fsm.stop = 1;
 
+%Update all the preset variables that may have been changed in the GUI. 
+fsm.token = get(fsm.handles.token,'string');
+fsm.Tspeedmaintainmeanadd = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string'));
+fsm.Tstimdurationmeanadd = str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
+fsm.Tspeedmaintainmin = str2num(get(fsm.handles.Tspeedmaintainmin,'string'));
+fsm.Tstimdurationmin = str2num(get(fsm.handles.Tstimdurationmin,'string'));
+fsm.nTrialsPerBlock = str2num(get(fsm.handles.nTrialsPerBlock,'string'));
+fsm.Trewdavailable = str2num(get(fsm.handles.Trewdavailable,'string'));
+fsm.lickthreshold = str2num(get(fsm.handles.lickthreshold,'string'));
+fsm.Tirrelgrating = str2num(get(fsm.handles.Tirrelgrating,'string'));
+fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
+fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
+fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
+fsm.Tirreldelay = str2num(get(fsm.handles.Tirreldelay,'string'));
+fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
+fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
+fsm.spdrnglow = str2num(get(fsm.handles.spdrnglow,'string'));
+fsm.extrawait = str2num(get(fsm.handles.Textrawait,'string'));
+fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
+fsm.punishT = str2num(get(fsm.handles.punishT,'string'));
+fsm.pirrel = str2num(get(fsm.handles.pirrel,'string'));
+fsm.prewd = str2num(get(fsm.handles.prewd,'string'));
+fsm.rewd = str2num(get(fsm.handles.rewd,'string'));
+fsm.Titi = str2num(get(fsm.handles.Titi,'string'));
+
 fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
@@ -714,6 +749,16 @@ fsm.stimtype = [];
 fsm.odour = [];
 fsm.outcome = [];
 fsm.trialend = 0;
+
+fsm.oridiff = [];
+fsm.irrelgrating = [];
+fsm.TspeedMaintainMinByTrial = [];
+fsm.TspeedMaintainMeanAddbyTrial = [];
+fsm.spdRngLowByTrial = [];
+fsm.punishTByTrial = [];
+fsm.pirrelByTrial = [];
+fsm.prewdByTrial = [];
+
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
 
@@ -897,11 +942,26 @@ for i = 1:length(correcttrials)
     yplot(i) = mean(correcttrials(max([1 i-20]):i))*100;
 end
 if length(correcttrials)>=5
-    VISorODR = get(fsm.handles.VISorODR,'Value');
+    VISorODR = fsm.VISorODR(fsm.trialnum);
     plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{VISorODR});
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
+% Making a plot of the performance dependent on orientation.
+oriPerf= cell(720,1);
+for j = 1:length(correcttrials)
+if fsm.VISorODR(j) == 1
+    oriPerf{fsm.oridiff(j)}(end+1) = correcttrials(j);
+end
+end
+oriPerfIndex = find(~cellfun('isempty', oriPerf) & cellfun('length', oriPerf)>5); 
+oriPerfMean = cellfun(@mean, oriPerf, 'uni', 0);
+
+scatter(fsm.handles.ax(4), oriPerfIndex, [oriPerfMean{oriPerfIndex, :}])
+hold(fsm.handles.ax(4),'on');
+plot(fsm.handles.ax(4), oriPerfIndex,  [oriPerfMean{oriPerfIndex, :}])
+hold(fsm.handles.ax(4),'off');
+set(fsm.handles.ax(4),'ylim',[0 1],'xlim',[0 50]); 
 
 function choose_stim
 global fsm
@@ -909,6 +969,13 @@ global fsm
 % Check which block, vis or odr
 VISorODR   = get(fsm.handles.VISorODR,'Value');
 fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
+
+fsm.TspeedMaintainMinByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmin,'String'));
+fsm.TspeedMaintainMeanAddbyTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'String'));
+fsm.spdRngLowByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.spdrnglow,'String'));
+fsm.punishTByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.punishT,'String'));
+fsm.pirrelByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrel,'String'));
+fsm.prewdByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.prewd,'String'));
 
 
 switch VISorODR
