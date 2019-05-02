@@ -5,9 +5,12 @@
 int ledPin = 13;
 int SensorValue1;
 int SensorValue2;
-int Ymax = 2000; // mV
+int Ymax = 3000; // mV
 int Ymin = 0;// mV
 int Sfreq = 40;// Sampling Freq Hz 
+int threshA = .5*1000;//
+int threshB = .7*1000 + 1000;//
+
 
 unsigned long PrevMillis = millis();
 unsigned long CurrMillis = millis();
@@ -31,9 +34,13 @@ void loop()
     Serial.print(" ");
     Serial.print(Ymin);
     Serial.print(" ");
-    Serial.print(SensorValue1+1000);//With 1 V offset
+    Serial.print(threshA);
     Serial.print(" ");
-    Serial.println(SensorValue2);
+    Serial.print(threshB);
+    Serial.print(" ");
+    Serial.print(SensorValue1);//With 1 V offset
+    Serial.print(" ");
+    Serial.println(SensorValue2+1000);
     digitalWrite(ledPin, LOW);
     delay(10);
     digitalWrite(ledPin, HIGH);
