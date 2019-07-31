@@ -455,11 +455,11 @@ while keeprunning
         
     %  spd in   spd out     lick    Tup       Timer   digiOut
         0           0        0       1         0.01     0               ;...% state 0 init
-        2           1        1       1         100      0               ;...% state 1 wait for speed in
+        5           1        1       1         100      0               ;...% state 1 wait for speed in
         2           1        2       3         spdT     0               ;...% state 2 maintain speed
         3           3        3       4         rewT     Rew             ;...% state 3 reward on
         4           4        4       99        iti      0               ;...% state 4 ITI
-          
+        5           5        5       2         .2       0               ;...% state 5 prevent fast transitions  
         ];
 
     stm (:,5) = round(stm(:,5)*1000); % sec to ms
