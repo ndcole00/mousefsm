@@ -16,7 +16,11 @@ try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
 fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
-fsm.savedir = 'C:\Behavioural_data\FSM_log\';
+if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
+    fsm.savedir = 'C:\Data\FSM_log\';
+else
+    fsm.savedir = 'C:\Behavioural_data\FSM_log\';
+end
 fsm.token = 'M99_B1';
 fsm.fname = '';
 fsm.spdrnghigh = 220;
