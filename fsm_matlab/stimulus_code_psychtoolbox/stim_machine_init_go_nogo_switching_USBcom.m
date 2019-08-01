@@ -46,7 +46,11 @@ try
     if 1
         % Load gamma correction table
         %         load ('C:\Users\KhanLab\Documents\MATLAB\FSM_KCL\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
-        load ('C:\Users\Behaviour Only B\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
+            load ('C:\Users\KhanLab\Documents\MATLAB\FSM_KCL\gamma correction\gamma correction KCL 2p\calib20190430_DellU2715Hc_bright50_cont50.mat');
+        else
+            load ('C:\Users\Behaviour Only B\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        end
         Screen('LoadNormalizedGammaTable', fsm.winL, GammaTable'*[1 1 1]);
         if fsm.twomonitors;Screen('LoadNormalizedGammaTable', fsm.winR, GammaTable'*[1 1 1]);end
     end

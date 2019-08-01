@@ -16,7 +16,11 @@ try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
 fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
-fsm.savedir = 'C:\Behavioural_data\FSM_log\';
+if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
+    fsm.savedir = 'C:\Data\FSM_log\';
+else
+    fsm.savedir = 'C:\Behavioural_data\FSM_log\';
+end
 fsm.token = 'M99_B1';
 fsm.fname = '';
 fsm.spdrnghigh = 220;
@@ -25,7 +29,7 @@ fsm.spdavgbin = .05;
 fsm.spdylim = 110;
 fsm.spdxrng = 5;
 fsm.Tspeedmaintainmin = 2.8;
-fsm.Tspeedmaintainmeanadd = .4;
+fsm.Tspeedmaintainmeanadd = .8;
 fsm.Tstimdurationmin = 1.5;
 fsm.Tstimdurationmeanadd = .2;
 fsm.Trewdavailable = 1;
@@ -53,7 +57,7 @@ fsm.VISorODR = [];
 fsm.vbl = 0;
 fsm.pirrel = 0;
 fsm.Tirrelgrating = 1.8;
-fsm.Tirreldelay = 1;
+fsm.Tirreldelay = 1.8;
 fsm.odour = [];
 fsm.plaser = 0;
 fsm.oridifflist = [30 20 10];
@@ -231,7 +235,7 @@ fsm.handles.contrast = uicontrol('Parent',fsm.handles.f,'Units','normalized','St
 % Prob irrel gratings %
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.02 0.1 0.2 0.04],...
-    'String','Prob Irrelevant gratings','FontSize',10);
+    'String','Prob Irrelevant Stim','FontSize',10);
 fsm.handles.pirrel = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.23 0.1 0.1 0.04],...
     'String',fsm.pirrel,'FontSize',10);
@@ -368,6 +372,11 @@ fsm.handles.twomonitors = uicontrol('Parent',fsm.handles.f,'Units','normalized',
     'Position', [0.48 0.8 0.13 0.04],'String','Two Monitors','Callback', @twoMonitor_callback, ...
     'Value',1,'FontSize',10);
 
+% Symmetric version of task
+fsm.handles.symmetricTask = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.48 0.85 0.13 0.04],'String','Symmetric', ...
+    'Value',0,'FontSize',10);
+
 % Grating orientation
 fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.35 0.7 0.26 0.04],...
@@ -483,10 +492,21 @@ while keeprunning
     
     switch fsm.stimtype(fsm.trialnum+1)% 1 = vis rewarded, 2 = vis not rewarded, 3 = Odr rewarded, 4 = odr not rewarded
         case 1 % vis rewarded
-            IR = 3;  % no irrel grating
+            %IR = 3;  % no irrel grating
             Stim = Vis1+Bln;% rewarded grating (+45 degrees)
             lok1 = 5;% rewd
             fa = 3;% refractory period
+            
+            if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
+                IR = 10;  %Irrel odour on
+                if fsm.odour(fsm.trialnum+1) == 1
+                    iStim = Odr1+Irr;% Odour1
+                else
+                    iStim = Odr2+Irr;% Odour2
+                end
+            else
+                IR = 3; % no irrel grating
+            end
             % auto reward or not
             if get(fsm.handles.autorewd ,'Value')==1
                 AR = 7;
@@ -495,12 +515,23 @@ while keeprunning
             end
             Rew = Rew+Vis1+Bln;
         case 2 % vis non rewarded
-            IR = 3;  %
+            %IR = 3;  
             Stim = Vis2+Bln;% non rewarded grating (-45 degrees)
             lok1 = 8;% punish
             fa = 8;% punish
             AR = 9; % no auto reward
             waitT = 1;% hard-coded! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
+            if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
+                IR = 10;  %Irrel odour on
+                if fsm.odour(fsm.trialnum+1) == 1
+                    iStim = Odr1+Irr;% Odour1
+                else
+                    iStim = Odr2+Irr;% Odour2
+                end
+            else
+                IR = 3; % no irrel grating
+            end
+        
         case 3 % odour rewarded
             Stim = Odr1;% Odr1
             lok1 = 5;% rewd
@@ -752,6 +783,7 @@ fsm.trialend = 0;
 
 fsm.oridiff = [];
 fsm.irrelgrating = [];
+fsm.irrelodour = [];
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
 fsm.spdRngLowByTrial = [];
@@ -1023,9 +1055,24 @@ switch VISorODR
             fsm.stimtype(fsm.trialnum+1) = 2; % non rewarded vis
             fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
         end
-        fsm.odour(fsm.trialnum+1) = NaN;
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
-        set(fsm.handles.odour, 'String',['Odour: ']);
+        
+        % select if irrelevant ODOUR presented
+        if get(fsm.handles.symmetricTask,'Value') && (rand < str2num(get(fsm.handles.pirrel,'String'))) % Irrel odour
+            fsm.irrelodour(fsm.trialnum+1) = 1;
+            % select irrelevant odour
+            if rand < .5 
+                fsm.odour(fsm.trialnum+1) = 1;
+            else
+                fsm.odour(fsm.trialnum+1) = 2;
+            end
+            set(fsm.handles.odour, 'String',['Odour: ' num2str(fsm.odour(fsm.trialnum+1))]);
+        else
+            fsm.irrelodour(fsm.trialnum+1) = 2; % no irrel odour
+            set(fsm.handles.odour, 'String',['Odour: ']);
+            fsm.odour(fsm.trialnum+1) = NaN;
+        end
+        
         
     case 2 % odour block
         fsm.VISorODR(fsm.trialnum+1) = 2;
