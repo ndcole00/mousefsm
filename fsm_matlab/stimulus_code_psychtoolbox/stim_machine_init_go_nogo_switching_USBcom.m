@@ -46,10 +46,16 @@ try
     if 1
         % Load gamma correction table
         %         load ('C:\Users\KhanLab\Documents\MATLAB\FSM_KCL\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
-        if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
+        if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1   
             load ('C:\Users\KhanLab\Documents\MATLAB\FSM_KCL\gamma correction\gamma correction KCL 2p\calib20190430_DellU2715Hc_bright50_cont50.mat');
-        else
-            load ('C:\Users\Behaviour Only B\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-A') % Box A
+            load ('C:\Users\Behaviour Box A\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-B') % Box B
+            load ('C:\Users\Behaviour Box B\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-C') % Box C
+            load ('C:\Users\Behaviour Box C\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
+        elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-D') % Box D
+            load ('C:\Users\Behaviour Box D\Documents\MATLAB\mousefsm\gamma correction\gamma correction mesoscope\calib20170817_DellU2715H_bright50_cont50.mat')
         end
         Screen('LoadNormalizedGammaTable', fsm.winL, GammaTable'*[1 1 1]);
         if fsm.twomonitors;Screen('LoadNormalizedGammaTable', fsm.winR, GammaTable'*[1 1 1]);end
