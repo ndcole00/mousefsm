@@ -28,7 +28,7 @@ try
     %screenidR = allscreens(end-1);
     %screenidR = allscreens(2);
     % new machine
-    fsm.twomonitors = 2;
+    fsm.twomonitors = 1;
     screenidL = 3;
     if fsm.twomonitors; screenidR = 2; end
     

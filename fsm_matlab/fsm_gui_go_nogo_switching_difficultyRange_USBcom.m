@@ -585,7 +585,7 @@ while keeprunning
         
 %  spd in   spd out     lick    Tup       Timer   digiOut
     0           0        0       1         0.01     Bln             ;...% state 0 init
-    2           1        1       1         100      Bln             ;...% state 1 wait for speed in
+    14          1        1       1         100      Bln             ;...% state 1 wait for speed in
     2           1        2       LR        spdT     Bln             ;...% state 2 maintain speed
     3           3        fa      4         stmT     Stim            ;...% state 3 Stim on, refractory period
     4           4        lok1    AR        waitT    Stim            ;...% state 4 Stim on, reward zone, wait for lick
@@ -597,7 +597,8 @@ while keeprunning
     10          10       10      11        igT      iStim           ;...% state 10 irrel grating
     11          11       11      3         iwT      Bln             ;...% state 11 delay after irrel grating
     12          12       12      IR        .1       Lon             ;...% state 12 laser on pre stim
-    13          13       13      9         .01      Bln             ;...% state 13 Miss 
+    13          13       13      9         .01      Bln             ;...% state 13 Miss
+    14          14       14      2         .2       Bln             ;...% state 14 prevent fast transitions
     ];
 
 stm (:,5) = round(stm(:,5)*1000); % sec to ms
