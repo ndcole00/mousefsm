@@ -43,7 +43,7 @@ orientation = fsm.orientation(fsm.trialnum);
 
 if max(fsm.teensyinput)==0;
     trigg = 0;
-    fsm.phase = 0; 
+    fsm.phase = rand*360; % randomise starting phase of grating 
 else
     trigg = find(fsm.teensyinput);
     fsm.phaseincrement = (cyclespersecond * 360) * fsm.ifi;
