@@ -24,7 +24,7 @@
 rgbvalues = round(linspace(0,255,16));
 % initialize screen
 screens=Screen('Screens');
-screenNumber=1%max(screens)
+screenNumber=2%max(screens)
 %     [window,screenRect,ifi,whichScreen]=initScreen;
 
 %open an (the only) onscreen Window, if you give only two input arguments

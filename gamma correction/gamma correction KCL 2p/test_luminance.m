@@ -59,8 +59,8 @@ Screen('Preference', 'VBLTimestampingMode', -1);
 % % NormalizedgammaTable_DellU2711:
 % Screen('LoadNormalizedGammaTable', window, GammaTable_r604u2713'*[1 1 1]);
 % Normal_Gamma_Table:
-load ('C:\Jasper\Matlab\Adil\FSM_2p_setup\gamma corection 2p setup\GammaTable_Dell_U2415b_bright20_cont50.mat')
-Screen('LoadNormalizedGammaTable', window, GammaTable_Dell_U2415b_bright20_cont50'*[1 1 1]);
+load ('C:\Users\Behaviour Only One\Documents\MATLAB\mousefsm\gamma correction\gamma correction KCL 2p\GammaTable_Dell_P2219H.mat')
+Screen('LoadNormalizedGammaTable', window, GammaTable_Dell_P2219H'*[1 1 1]);
 % Screen('LoadNormalizedGammaTable', window, ([0:255]./255)'*[1 1 1]);
 white=WhiteIndex(window);
 black=BlackIndex(window);
