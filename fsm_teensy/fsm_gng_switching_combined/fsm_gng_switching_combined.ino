@@ -1,4 +1,4 @@
- // FSMteensy
+// FSMteensy
 // Adil Khan, Basel 2016
 // This version uses binary format for digi out
 // 20170819 uses digital bit for trial end instead of serial
@@ -138,13 +138,13 @@ void loop()
       // speed in cm/s = (outputVoltage - .4)/.016
       sflag = sflag + 1;
       if (sflag >= spdBin / spdBin2 && speedMonitorFlag == 1) {
-        if (USBcomFlag ==1) {
+        if (USBcomFlag == 1) {
           Serial.println('S');
+          Serial.println(spd);
+          //Serial.println(analogRead(0));
+          Serial.send_now();
+          sflag = 0;
         }
-        Serial.println(spd);
-        //Serial.println(analogRead(0));
-        Serial.send_now();
-        sflag = 0;
       }
 
 
@@ -163,7 +163,7 @@ void loop()
       // send digiout
       // least significant bit is pin2, reward
       int dig = stm[state][5];
-      if (USBcomFlag ==1) {
+      if (USBcomFlag == 1) {
         Serial.println(dig);
       }
       for (int i = 0; i < Npins; i++) {
@@ -173,9 +173,9 @@ void loop()
 
       // send analog out for PWM of laser
       if (nCols == 7) {
-      analogWrite(analogoutPin, stm[state][6]);
+        analogWrite(analogoutPin, stm[state][6]);
       }
-      
+
       // send the new state to matlab
       //Serial.println('S');
       //Serial.println(state);
@@ -214,8 +214,8 @@ void loop()
 
     if (state == 99) { // end the trial
       triallog += millis(); triallog += "_"; triallog += state; triallog += "_End";
-      if (USBcomFlag ==1) {
-      Serial.println('E');
+      if (USBcomFlag == 1) {
+        Serial.println('E');
       }
       digitalWrite(trialendPin, HIGH);
       Serial.println(triallog);
@@ -232,6 +232,9 @@ void loop()
         Serial.println(triallog);
         //digitalWrite(ledPin, LOW);
         allPinsLow();
+        if (nCols == 7) {
+          analogWrite(analogoutPin,0);
+        }
 
       }
     }

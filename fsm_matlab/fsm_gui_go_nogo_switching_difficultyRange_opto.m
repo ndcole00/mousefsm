@@ -577,6 +577,8 @@ while keeprunning
         pL = 1; %Force laser trials
         set(fsm.handles.autorewd, 'Value',0)
         fa = 3;
+        lok1 = 5;
+        waitT = 0;rewT=0;extraT=0;
     end
     
     if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) % laser trial

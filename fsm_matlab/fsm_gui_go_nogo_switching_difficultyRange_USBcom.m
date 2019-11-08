@@ -153,7 +153,7 @@ fsm.handles.Tirreldelay = uicontrol('Parent',fsm.handles.f,'Units','normalized',
     'String',fsm.Tirreldelay,'FontSize',10);
 
 % T speed maintain min
-uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+fsm.handles.Tspeedmaintainmin_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.02 0.6 0.2 0.04],...
     'String','T speed maintain min','FontSize',10);
 fsm.handles.Tspeedmaintainmin = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
@@ -472,6 +472,9 @@ while keeprunning
     pT    = str2num(get(fsm.handles.punishT,'string'));
     fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
     pL    = str2num(get(fsm.handles.plaser,'string'));
+     % put current values in textboxes
+    set(fsm.handles.Tspeedmaintainmin_label,'string',['T speed maintain min (' sprintf('%.2f',spdT) ')'])
+  
     %     fsm.orientationchange = str2num(get(fsm.handles.orientationchange,'String'));
     %     if ~fsm.iscuetrial ; cueT = 0; end
     %     fsm.difflist = str2num(get(fsm.handles.orientationchangelist,'String'));

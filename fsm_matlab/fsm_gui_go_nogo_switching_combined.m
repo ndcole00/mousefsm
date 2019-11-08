@@ -5,6 +5,8 @@
 % 20161102 used binary format for digiout
 % 20170819 uses teensy digital line 12 for trial end instead of serial
 % 20161103 PWM for control of laser power, extra column on stm
+%          This one can present optogenetic laser (PWM) at any time wrt
+%          stim on EXCEPT starting after stim has started (to do)
 
 function fsm_gui_go_nogo_switching_combined()
 
@@ -26,9 +28,9 @@ end
 fsm.TeensyCode = 'fsm_gng_switching_combined.ino'; % This works for both USB and DAQcom
 fsm.PCname = getenv('computername');
 
-% % Initialise
-% try fsm.comport = num2str(GetComPort ('USB Serial Device'));
-% catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+% Initialise
+try fsm.comport = num2str(GetComPort ('USB Serial Device'));
+catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
 
 fsm.token = 'M99_B1';
@@ -561,7 +563,7 @@ while keeprunning
             fa = 3;% refractory period
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
-                IR2 = 15;
+                IR2 = 16;
                 if fsm.orientation(fsm.trialnum+1) == fsm.stim1ori;
                     iStim = Vis1+Irr+Bln;% +45 degrees
                 else
@@ -606,10 +608,15 @@ while keeprunning
         Stim = Bln;Rew = Bln; iStim = Bln; % no stim signals
         pL = 1; %Force laser trials
         set(fsm.handles.autorewd, 'Value',0)
+        set(fsm.handles.VISorODR, 'Value',1)
+        %set(fsm.handles.laserRange,'string','-1.5,0')
         fa = 3;
+        lok1=5;
+        waitT = 0;rewT=0;extraT=0;
     end
     
-    L2 = 0; L3 = 0; % Set = 0 to start
+    L2 = 0; L3 = 0; pwr2 = 0; Gap = 0; % Set = 0 to start
+    Lpre = 0; Lpst = 0; IR3 = IR;
     % if laser trial
     if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) 
         LR = 12;
@@ -627,21 +634,32 @@ while keeprunning
         
         % set laser onset times
         laserRange = str2num(get(fsm.handles.laserRange,'string'));
-        Lpre = laserRange(1);
+        assert(laserRange(1)<=0,'Laser range first number must be 0 or negative')
+        assert(laserRange(1)<laserRange(2),'Laser range first must be smaller')
+        Lpre = -laserRange(1);
         Lpst = laserRange(2);
         
-        
-        if Lpst>stmT % if laser goes on longer than min view time, it will stay on till end of stim
-            Lpst = stmT;
-            pwr2 = pwr;
-            L2 = L;% Make L2 = L if laser is staying on longer than min view time ie going on till end, && not an odour trial
-            if Stim~=(Odr1)&& Stim~=(Odr2) % no laser on odor
-                L3 = L; % Make L3 also = L if in addition its not an odour trial
-            end 
+        if laserRange(2)<0
+            IR3 = 17; % if laser needs to go off and then gap before stim comes on
+            Lpre = laserRange(2)-laserRange(1);
+            Gap = abs(laserRange(2));
         else
-            pwr2 = 0;
-            L2 = 0;
-            L3 = 0;
+            IR3 = IR2;
+        end
+        
+        if laserRange(2)>=0 % if laser continues into stim
+            if Lpst>stmT % if laser goes on longer than min view time, it will stay on till end of stim
+                Lpst = stmT;
+                pwr2 = pwr;
+                L2 = L;% Make L2 = L if laser is staying on longer than min view time ie going on till end, && not an odour trial
+                if Stim~=(Odr1)&& Stim~=(Odr2) % no laser on odor
+                    L3 = L; % Make L3 also = L if in addition its not an odour trial
+                end
+            else
+                pwr2 = 0;
+                L2 = 0;
+                L3 = 0;
+            end
         end
         
     else % if not a laser trial
@@ -665,12 +683,12 @@ while keeprunning
     9           9        9       99        iti            Bln        0      ;...% state 9 ITI
     10          10       34      30        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 10 irrel grating
     11          11       11      3         iwT            Bln        0      ;...% state 11 delay after irrel grating
-    12          12       12      IR2       Lpre           Lon        pwr    ;...% state 12 laser on pre stim
+    12          12       12      IR3       Lpre           Lon        pwr    ;...% state 12 laser on pre stim
     13          13       13      9         .01            Bln        0      ;...% state 13 Miss 
     14          14       14      2         .2             Bln        0      ;...% state 14 to prevent fast transitions
     15          15       15      3         Lpst           Stim+L     pwr    ;...% state 15 stim on + laser on continuing into stim (used in case laser is on after stim but for less than min view time)
     16          16       25      21        Lpst/5         iStim+L    pwr    ;...% state 16 istim on + laser on continuing into istim, lick here will lead to catch state  
-    0           0        0       0         0              0          0      ;...% state 17 blank for future use
+    17          17       17      IR        Gap            Bln        0      ;...% state 17 In case gap after laser off and stim on
     0           0        0       0         0              0          0      ;...% state 18 blank for future use
     0           0        0       0         0              0          0      ;...% state 19 blank for future use
     0           0        0       0         0              0          0      ;...% state 20 blank for future use
@@ -689,17 +707,17 @@ while keeprunning
     29          29       29      10        Lpst/5         iStim+L    pwr    ;...% state 29 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
     
                                                                                 % (coming from iStim) licks here will lead to catch states 
-    30          30       35      31        (igT-Lpst)/5   iStim+L    pwr    ;...% state 30 istim on (1/5th to allow recording FA on irrels)
-    31          31       36      32        (igT-Lpst)/5   iStim+L    pwr    ;...% state 31 istim on (1/5th to allow recording FA on irrels)
-    32          32       37      33        (igT-Lpst)/5   iStim+L    pwr    ;...% state 32 istim on (1/5th to allow recording FA on irrels)
-    33          33       38      11        (igT-Lpst)/5   iStim+L    pwr    ;...% state 33 istim on (1/5th to allow recording FA on irrels)
+    30          30       35      31        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 30 istim on (1/5th to allow recording FA on irrels)
+    31          31       36      32        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 31 istim on (1/5th to allow recording FA on irrels)
+    32          32       37      33        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 32 istim on (1/5th to allow recording FA on irrels)
+    33          33       38      11        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 33 istim on (1/5th to allow recording FA on irrels)
     
                                                                                 % catch states
-    34          34       34      35        (igT-Lpst)/5   iStim+L    pwr    ;...% state 34 istim on (1/5th to allow recording FA on irrels)
-    35          35       35      36        (igT-Lpst)/5   iStim+L    pwr    ;...% state 35 istim on (1/5th to allow recording FA on irrels)
-    36          36       36      37        (igT-Lpst)/5   iStim+L    pwr    ;...% state 36 istim on (1/5th to allow recording FA on irrels)
-    37          37       37      38        (igT-Lpst)/5   iStim+L    pwr    ;...% state 37 istim on (1/5th to allow recording FA on irrels)
-    38          38       38      11        (igT-Lpst)/5   iStim+L    pwr    ;...% state 38 istim on (1/5th to allow recording FA on irrels)
+    34          34       34      35        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 34 istim on (1/5th to allow recording FA on irrels)
+    35          35       35      36        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 35 istim on (1/5th to allow recording FA on irrels)
+    36          36       36      37        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 36 istim on (1/5th to allow recording FA on irrels)
+    37          37       37      38        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 37 istim on (1/5th to allow recording FA on irrels)
+    38          38       38      11        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 38 istim on (1/5th to allow recording FA on irrels)
  
     ];
 
@@ -734,7 +752,7 @@ fprintf(fsm.ard,'%s\n',num2str(threshold));
 speedMonitorFlag = get(fsm.handles.speedMonitorFlag,'Value');
 fprintf(fsm.ard,'%s\n',num2str(speedMonitorFlag));
 
-% Send flag to indicate if it is USBcom (behaviour boxes with NI USB6008)
+% Send flag to indicate if it is USBcom (behaviour boxes running on NI USB6008)
 fprintf(fsm.ard,'%s',num2str(fsm.USBcomFlag));
 
 % Remember last one without \n
@@ -816,8 +834,8 @@ switch rcvd
                         fsm.instspeed = str2num(rcvd2);
                     end
                 elseif strmatch(fsm.version,'USBcom')
-                    if fsm.ard.BytesAvailable
-                        rcvd2 = fscanf(fsm.ard,'%s');
+                    if fsm.spdAvailable
+                        rcvd2 = fsm.spd;
                         olddat = get(fsm.handles.spdplot,'ydata');
                         newdat = cat(2,olddat(2:end),str2num(rcvd2));
                         set(fsm.handles.spdplot,'ydata',newdat);
@@ -861,7 +879,7 @@ fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
 fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
 fsm.Tirreldelay = str2num(get(fsm.handles.Tirreldelay,'string'));
 fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
-fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
+%fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
 fsm.spdrnglow = str2num(get(fsm.handles.spdrnglow,'string'));
 fsm.extrawait = str2num(get(fsm.handles.Textrawait,'string'));
 fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
@@ -1005,8 +1023,10 @@ end
 if length(correcttrials)>=5
     VISorODR = get(fsm.handles.VISorODR,'Value');
     plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{VISorODR});
-    hold on;
-    plot(fsm.handles.ax(2),length(correcttrials),yplotFAirrel(end),mrks{3});
+    if VISorODR == 2
+        hold on;
+        plot(fsm.handles.ax(2),length(correcttrials),yplotFAirrel(end),mrks{3});
+    end
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
@@ -1047,7 +1067,7 @@ switch VISorODR
         % find out if blockwise or trial by trial for different difficulties% trialnum is not yet incremented
         fsm.blockORtbt(fsm.trialnum+1) = get(fsm.handles.blockORtbt,'Value');
         blockORtbt = fsm.blockORtbt(fsm.trialnum+1);
-        
+        fsm.irrelgrating(fsm.trialnum+1) = 0;
         switch blockORtbt
             case 1 % blocks
                 if isempty(fsm.orientation) || fsm.VISorODR(fsm.trialnum)==2 || fsm.blockORtbt(fsm.trialnum)==2% first trial or change to blockwise after odr block/ vis trial by trial
