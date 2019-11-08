@@ -26,9 +26,9 @@ end
 fsm.TeensyCode = 'fsm_gng_switching_combined.ino'; % This works for both USB and DAQcom
 fsm.PCname = getenv('computername');
 
-% Initialise
-try fsm.comport = num2str(GetComPort ('USB Serial Device'));
-catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+% % Initialise
+% try fsm.comport = num2str(GetComPort ('USB Serial Device'));
+% catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
 
 fsm.token = 'M99_B1';
@@ -78,7 +78,9 @@ fsm.laserpower = [];
 fsm.laserpoweroptions = '4,20,33,100';
 powers = str2num(fsm.laserpoweroptions);
 fsm.plist = randperm(length(powers));
+fsm.laserRange = '-.1,1.5'; % wrt stim om
 fsm.outcome = [];
+fsm.FAirrelOutcome = [];
 
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
@@ -88,7 +90,7 @@ fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
 %--------------------------------------------------------------------------
 % make GUI
-for i = 1 % just to enable folding of this chunk of code
+for i = 1 % IF statement just to enable folding of this chunk of code
 fsm.handles.f = figure('Units','normalized','Position',[0.05 0.4 0.5 0.5],...
     'Toolbar','figure');
 set(fsm.handles.f,'CloseRequestFcn',@my_closefcn);
@@ -124,14 +126,6 @@ uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','i
 fsm.handles.token = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.23 0.85 0.1 0.04],...
     'String',fsm.token,'FontSize',10);
-
-% spd rng high
-uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.02 0.8 0.2 0.04],...
-    'String','Speed range high','FontSize',10);
-fsm.handles.spdrnghigh = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.23 0.8 0.1 0.04],...
-    'String',fsm.spdrnghigh,'FontSize',10,'Callback', @call_change_spdrnghigh);
 
 % spd rng low
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -273,11 +267,19 @@ fsm.handles.temporalfreq = uicontrol('Parent',fsm.handles.f,'Units','normalized'
 
 % Prob laser
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.65 0.17 0.04],...
+    'Position', [0.35 0.8 0.07 0.04],...
     'String','Prob laser','FontSize',10);
 fsm.handles.plaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.53 0.65 0.08 0.04],...
+    'Position', [0.43 0.8 0.04 0.04],...
     'String',fsm.plaser,'FontSize',10);
+
+% Laser range wrt stim. inf means end with stim
+uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.55 0.17 0.04],...
+    'String','OP laser range wrt stim','FontSize',10);
+fsm.handles.laserRange = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.53 0.55 0.08 0.04],...
+    'String',fsm.laserRange,'FontSize',10);
 
 % Lick threshold
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -289,10 +291,10 @@ fsm.handles.lickthreshold = uicontrol('Parent',fsm.handles.f,'Units','normalized
 %
 % Extra wait time
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.55 0.17 0.04],...
+    'Position', [0.35 0.85 0.07 0.04],...
     'String','Extra wait time','FontSize',10);
 fsm.handles.Textrawait = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.53 0.55 0.08 0.04],...
+    'Position', [0.43 0.85 0.04 0.04],...
     'String',fsm.extrawait,'FontSize',10);
 
 % Horizontal position of patch
@@ -327,68 +329,43 @@ fsm.handles.punishT = uicontrol('Parent',fsm.handles.f,'Units','normalized','Sty
 fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
     'Position', [0.35 0.40 0.12 0.04],'String',{'Visual','Odour'},...
     'Value',1,'FontSize',10);
-%
-% % Ntrials with cue
-% uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.42 0.5 0.1 0.04],...%[0.35 0.5 0.08 0.04]
-%     'String','Ntrials with cue','FontSize',10);
-% fsm.handles.ntrialswithcue = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-%     'Position', [0.53 0.5 0.08 0.04],...
-%     'String',fsm.ntrialswithcue,'FontSize',10);
-%
-% % Min orientation view time
-% uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.35 0.45 0.17 0.04],...
-%     'String','Min orientation view T','FontSize',10);
-% fsm.handles.Tminorientationview = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-%     'Position', [0.53 0.45 0.08 0.04],...
-%     'String',fsm.Tminorientationview,'FontSize',10);
+
 % Laser power options
 fsm.handles.laserpoweroptions_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.8 0.16 0.04],...
+    'Position', [0.35 0.65 0.17 0.04],...
     'String','Laser powers (%):0','FontSize',10);
 fsm.handles.laserpoweroptions = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.52 0.8 0.09 0.04],...
+    'Position', [0.53 0.65 0.08 0.04],...
     'String',fsm.laserpoweroptions,'FontSize',10);
  
-% % Laser power
-% fsm.handles.laserpower = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.35 0.40 0.13 0.04],...
-%     'String','Laser power: 0','FontSize',10);
-%
-% % Type of session: left/right OR front/back
-% fsm.handles.lrORfb = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-%     'Position', [0.35 0.40 0.13 0.04],'String',{'Left/Right','Front/Back'},...
-%     'Value',1,'FontSize',10);
-%
-
-% % Both sides Ori change?
-% fsm.handles.bothsides = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-%     'Position', [0.35 0.25 0.12 0.04],'String','Both sides change?',...
-%     'Value',1,'FontSize',10);
-%
-
 
 %%% Indicators %%%
 
 % Filename
 fsm.handles.fname = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.9 0.26 0.04],...
+    'Position', [0.02 0.8 0.31 0.04],...
     'String',['Filename: ' fsm.fname],'FontSize',10,'HorizontalAlignment','left');
 
 % Trial number
 fsm.handles.trialnum = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.85 0.12 0.04],...
+    'Position', [0.35 0.9 0.12 0.04],...
     'String',['Trial Number: ' num2str(fsm.trialnum)],'FontSize',10,'HorizontalAlignment','left');
 
 % Odour
 fsm.handles.odour = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.48 0.85 0.13 0.04],...
+    'Position', [0.35 0.7 0.12 0.04],...
     'String',['Odour: '],'FontSize',10,'HorizontalAlignment','left');
+
+% Grating orientation
+fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.75 0.12 0.04],...
+    'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
+
+%%% Checkboxes %%%
 
 % Auto reward
 fsm.handles.autorewd = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-    'Position', [0.35 0.75 0.26 0.04],'String','Auto Reward',...
+    'Position', [0.48 0.9 0.13 0.04],'String','Auto Reward',...
     'Value',1,'FontSize',10);
 
 % Speed monitor
@@ -411,35 +388,27 @@ fsm.handles.symmetricTask = uicontrol('Parent',fsm.handles.f,'Units','normalized
     'Position', [0.48 0.85 0.13 0.04],'String','Symmetric', ...
     'Value',0,'FontSize',10);
 
-% Grating orientation
-fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.7 0.12 0.04],...
-    'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
 
-% % State
-% fsm.handles.state = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.35 0.5 0.06 0.04],...
-%     'String',['State: ' num2str(fsm.state)],'FontSize',10,'HorizontalAlignment','left');
 
 %%%%% Buttons%%%%
 % Start button
 fsm.handles.start = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.35 0.33 0.13 0.07],...
+    'Position', [0.35 0.31 0.13 0.08],...
     'String','Start','BackgroundColor', 'green','Callback', @call_start);
 
 % Stop button
 fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.49 0.33 0.12 0.07],...
+    'Position', [0.49 0.31 0.12 0.08],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
 % Toggle valve button
 fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.45 0.28 0.16 0.04],...
+    'Position', [0.49 0.265 0.12 0.04],...
     'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
 
 % Set parameters for orimap
 fsm.handles.setOrimapParams = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.35 0.28 0.1 0.04],...
+    'Position', [0.35 0.265 0.13 0.04],...
     'String','OriMap params', 'BackgroundColor', 'cyan','Callback', @call_setOrimapParams);
 
 
@@ -547,6 +516,7 @@ while keeprunning
             
             if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
                 IR = 10;  %Irrel odour on
+                IR2 = 16;
                 if fsm.odour(fsm.trialnum+1) == 1
                     iStim = Odr1+Irr;% Odour1
                 else
@@ -554,6 +524,7 @@ while keeprunning
                 end
             else
                 IR = 3; % no irrel grating
+                IR2 = 15;
             end
             
             % auto reward or not
@@ -573,6 +544,7 @@ while keeprunning
             
             if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
                 IR = 10;  %Irrel odour on
+                IR2 = 16;
                 if fsm.odour(fsm.trialnum+1) == 1
                     iStim = Odr1+Irr;% Odour1
                 else
@@ -580,6 +552,7 @@ while keeprunning
                 end
             else
                 IR = 3; % no irrel grating
+                IR2 = 15;
             end
 
         case 3 % odour rewarded
@@ -588,12 +561,15 @@ while keeprunning
             fa = 3;% refractory period
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
+                IR2 = 15;
                 if fsm.orientation(fsm.trialnum+1) == fsm.stim1ori;
                     iStim = Vis1+Irr+Bln;% +45 degrees
                 else
                     iStim = Vis2+Irr+Bln;% -45 degrees
                 end
-            else IR = 3; % no irrel grating
+            else
+                IR = 3; % no irrel grating
+                IR2 = 15;
             end
             
             % auto reward or not
@@ -609,19 +585,23 @@ while keeprunning
             fa = 8;% punish
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
+                IR2 = 16;
                 if fsm.orientation(fsm.trialnum+1) == fsm.stim1ori;
                     iStim = Vis1+Irr+Bln;% +45 degrees
                 else
                     iStim = Vis2+Irr+Bln;% -45 degrees
                 end
-            else IR = 3; % no irrel grating
+            else
+                IR = 3; % no irrel grating
+                IR2 = 15;
             end
             AR = 9; % no auto reward
             
     end
     pwr = 0;
+    pwr2 = 0;
     
-        % if only laser trials
+    % if only laser trials (OP)
     if get(fsm.handles.onlylaser,'Value')
         Stim = Bln;Rew = Bln; iStim = Bln; % no stim signals
         pL = 1; %Force laser trials
@@ -629,11 +609,10 @@ while keeprunning
         fa = 3;
     end
     
-    if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) % laser trial
+    L2 = 0; L3 = 0; % Set = 0 to start
+    % if laser trial
+    if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) 
         LR = 12;
-        if Stim~=(Odr1)&& Stim~=(Odr2);Stim = Stim + L;end % no laser on odor
-        Rew = Rew + L;
-        iStim = iStim + L;
         
         % choose laser power (PWM)
         powers = str2num(get(fsm.handles.laserpoweroptions,'string'));
@@ -646,7 +625,26 @@ while keeprunning
         set (fsm.handles.laserpoweroptions_label,'String',['Laser powers (%):' num2str(pwr)]);
         pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
         
-    else
+        % set laser onset times
+        laserRange = str2num(get(fsm.handles.laserRange,'string'));
+        Lpre = laserRange(1);
+        Lpst = laserRange(2);
+        
+        
+        if Lpst>stmT % if laser goes on longer than min view time, it will stay on till end of stim
+            Lpst = stmT;
+            pwr2 = pwr;
+            L2 = L;% Make L2 = L if laser is staying on longer than min view time ie going on till end, && not an odour trial
+            if Stim~=(Odr1)&& Stim~=(Odr2) % no laser on odor
+                L3 = L; % Make L3 also = L if in addition its not an odour trial
+            end 
+        else
+            pwr2 = 0;
+            L2 = 0;
+            L3 = 0;
+        end
+        
+    else % if not a laser trial
         LR = IR;
         set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
     end
@@ -654,22 +652,55 @@ while keeprunning
     
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
         
-%  spd in   spd out     lick    Tup       Timer   digiOut   AnalogOut
-    0           0        0       1         0.01     Bln        0      ;...% state 0 init
-    14          1        1       1         100      Bln        0      ;...% state 1 wait for speed in
-    2           1        2       LR        spdT     Bln        0      ;...% state 2 maintain speed
-    3           3        fa      4         stmT     Stim       pwr    ;...% state 3 Stim on, refractory period
-    4           4        lok1    AR        waitT    Stim       pwr    ;...% state 4 Stim on, reward zone, wait for lick
-    5           5        5       6         rewT     Rew        pwr    ;...% state 5 Stim on, reward on
-    6           6        6       9         extraT   Stim       pwr    ;...% state 6 Stim on, extra view
-    7           7        7       6         rewT     Rew        pwr    ;...% state 7 auto reward
-    8           8        8       4         pT       Stim       pwr    ;...% state 8 punish time
-    9           9        9       99        iti      Bln        0      ;...% state 9 ITI
-    10          10       10      11        igT      iStim      pwr    ;...% state 10 irrel grating
-    11          11       11      3         iwT      Bln        0      ;...% state 11 delay after irrel grating
-    12          12       12      IR        .1       Lon        pwr    ;...% state 12 laser on pre stim
-    13          13       13      9         .01      Bln        0      ;...% state 13 Miss 
-    14          14       14      2         .2       Bln        0      ;...% state 14 to prevent fast transitions
+%  spd in   spd out     lick    Tup       Timer         digiOut   AnalogOut
+    0           0        0       1         0.01           Bln        0      ;...% state 0 init
+    14          1        1       1         100            Bln        0      ;...% state 1 wait for speed in
+    2           1        2       LR        spdT           Bln        0      ;...% state 2 maintain speed
+    3           3        fa      4         stmT-Lpst      Stim+L3    pwr2   ;...% state 3 Stim on, refractory period
+    4           4        lok1    AR        waitT          Stim+L3    pwr2   ;...% state 4 Stim on, reward zone, wait for lick
+    5           5        5       6         rewT           Rew+L3     pwr2   ;...% state 5 Stim on, reward on
+    6           6        6       9         extraT         Stim+L3    pwr2   ;...% state 6 Stim on, extra view
+    7           7        7       6         rewT           Rew+L3     pwr2   ;...% state 7 auto reward
+    8           8        8       4         pT             Stim+L3    pwr2   ;...% state 8 punish time
+    9           9        9       99        iti            Bln        0      ;...% state 9 ITI
+    10          10       34      30        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 10 irrel grating
+    11          11       11      3         iwT            Bln        0      ;...% state 11 delay after irrel grating
+    12          12       12      IR2       Lpre           Lon        pwr    ;...% state 12 laser on pre stim
+    13          13       13      9         .01            Bln        0      ;...% state 13 Miss 
+    14          14       14      2         .2             Bln        0      ;...% state 14 to prevent fast transitions
+    15          15       15      3         Lpst           Stim+L     pwr    ;...% state 15 stim on + laser on continuing into stim (used in case laser is on after stim but for less than min view time)
+    16          16       25      21        Lpst/5         iStim+L    pwr    ;...% state 16 istim on + laser on continuing into istim, lick here will lead to catch state  
+    0           0        0       0         0              0          0      ;...% state 17 blank for future use
+    0           0        0       0         0              0          0      ;...% state 18 blank for future use
+    0           0        0       0         0              0          0      ;...% state 19 blank for future use
+    0           0        0       0         0              0          0      ;...% state 20 blank for future use
+
+                                                                                % (coming from laser+iStim) licks here will lead to catch states 
+    21          21       26      22        Lpst/5         iStim+L    pwr    ;...% state 21 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    22          22       27      23        Lpst/5         iStim+L    pwr    ;...% state 22 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    23          23       28      24        Lpst/5         iStim+L    pwr    ;...% state 23 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    24          24       29      10        Lpst/5         iStim+L    pwr    ;...% state 24 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    
+                                                                                % catch states
+    25          25       25      26        Lpst/5         iStim+L    pwr    ;...% state 25 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    26          26       26      27        Lpst/5         iStim+L    pwr    ;...% state 26 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    27          27       27      28        Lpst/5         iStim+L    pwr    ;...% state 27 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    28          28       28      29        Lpst/5         iStim+L    pwr    ;...% state 28 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    29          29       29      10        Lpst/5         iStim+L    pwr    ;...% state 29 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    
+                                                                                % (coming from iStim) licks here will lead to catch states 
+    30          30       35      31        (igT-Lpst)/5   iStim+L    pwr    ;...% state 30 istim on (1/5th to allow recording FA on irrels)
+    31          31       36      32        (igT-Lpst)/5   iStim+L    pwr    ;...% state 31 istim on (1/5th to allow recording FA on irrels)
+    32          32       37      33        (igT-Lpst)/5   iStim+L    pwr    ;...% state 32 istim on (1/5th to allow recording FA on irrels)
+    33          33       38      11        (igT-Lpst)/5   iStim+L    pwr    ;...% state 33 istim on (1/5th to allow recording FA on irrels)
+    
+                                                                                % catch states
+    34          34       34      35        (igT-Lpst)/5   iStim+L    pwr    ;...% state 34 istim on (1/5th to allow recording FA on irrels)
+    35          35       35      36        (igT-Lpst)/5   iStim+L    pwr    ;...% state 35 istim on (1/5th to allow recording FA on irrels)
+    36          36       36      37        (igT-Lpst)/5   iStim+L    pwr    ;...% state 36 istim on (1/5th to allow recording FA on irrels)
+    37          37       37      38        (igT-Lpst)/5   iStim+L    pwr    ;...% state 37 istim on (1/5th to allow recording FA on irrels)
+    38          38       38      11        (igT-Lpst)/5   iStim+L    pwr    ;...% state 38 istim on (1/5th to allow recording FA on irrels)
+ 
     ];
 
 stm (:,5) = round(stm(:,5)*1000); % sec to ms
@@ -872,6 +903,7 @@ fsm.stimtype = [];
 fsm.odour = [];
 fsm.laserpower = [];
 fsm.outcome = [];
+fsm.FAirrelOutcome = [];
 fsm.trialend = 0;
 fsm.oridiff = [];
 fsm.irrelgrating = [];
@@ -949,17 +981,32 @@ elseif ~isempty(strfind(triallog, '4to9')); fsm.outcome(fsm.trialnum) = 2;fprint
 else error ('here');
 end
 
+% Also find FAs to Irrel stims (FAirrel)
+% FAirrel:  from laser on period 16 to 25, 21 to 26, 22 to 27, 23 to 28, 24 to 29, or not from laser on period 10 to 34, 30 to 35, 31 to 36, 32 to 37, 33 to 38
+if ~isempty(strfind(triallog, '16to25'))||~isempty(strfind(triallog, '21to26'))||~isempty(strfind(triallog, '22to27'))||~isempty(strfind(triallog, '23to28'))...
+        ||~isempty(strfind(triallog, '24to29'))||~isempty(strfind(triallog, '10to34'))||~isempty(strfind(triallog, '30to35'))||~isempty(strfind(triallog, '31to36'))...
+        ||~isempty(strfind(triallog, '32to37'))||~isempty(strfind(triallog, '33to38'))
+    fsm.FAirrelOutcome(fsm.trialnum) = 1;fprintf('FA Irrel\n');% FA irrel
+elseif fsm.irrelgrating(fsm.trialnum) == 1 % if its an irrel grating trial & no FA
+    fsm.FAirrelOutcome(fsm.trialnum) = 0;fprintf('CR Irrel\n');% CR irrel
+else
+    fsm.FAirrelOutcome(fsm.trialnum) = NaN; % Not an irrel trial
+end
+
 % update performance plot
 % 20 trial window
-mrks = {'ro','k*'};
+mrks = {'ro','k*','b^'};
 correcttrials = (fsm.outcome == 1) + (fsm.outcome == 2);
 yplot = [];
 for i = 1:length(correcttrials)
     yplot(i) = mean(correcttrials(max([1 i-20]):i))*100;
+    yplotFAirrel(i) = nanmean(fsm.FAirrelOutcome(max([1 i-20]):i))*100;
 end
 if length(correcttrials)>=5
     VISorODR = get(fsm.handles.VISorODR,'Value');
     plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{VISorODR});
+    hold on;
+    plot(fsm.handles.ax(2),length(correcttrials),yplotFAirrel(end),mrks{3});
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 

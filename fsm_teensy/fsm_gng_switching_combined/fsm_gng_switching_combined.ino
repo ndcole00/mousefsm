@@ -35,6 +35,7 @@ void setup() {
   pinMode(analogoutPin, OUTPUT);
   Serial.setTimeout(10);
   analogWriteResolution(12);
+  analogWriteFrequency(analogoutPin, 1000); // 1KHz PWM
 }
 
 
