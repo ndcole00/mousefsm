@@ -27,7 +27,7 @@ end
 
 aspectratio = 1;
 
-SF = str2num(get(fsm.handles.spatialfreq,'string'));
+SF = fsm.spatialfreq;
 period   = round(fsm.scrset.ppd./SF);
 cyclespersecond = fsm.temporalfreq;
 

@@ -83,6 +83,8 @@ fsm.plist = randperm(length(powers));
 fsm.laserRange = '-.1,1.5'; % wrt stim om
 fsm.outcome = [];
 fsm.FAirrelOutcome = [];
+fsm.NtrialsAutoSwitch = 40;
+fsm.accuracyThresholdAutoSwitch = 75;
 
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
@@ -251,21 +253,21 @@ fsm.handles.pirrel = uicontrol('Parent',fsm.handles.f,'Units','normalized','Styl
     'Position', [0.23 0.1 0.1 0.04],...
     'String',fsm.pirrel,'FontSize',10);
 
-% Spatial freq
+% Accuracy threshold for auto switch
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.02 0.05 0.2 0.04],...
-    'String','Spatial frequency','FontSize',10);
-fsm.handles.spatialfreq = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.23 0.05 0.1 0.04],...
-    'String',fsm.spatialfreq,'FontSize',10);
+    'Position', [0.02 0.05 0.155 0.04],...
+    'String','Accuracy threshold Auto switch ','FontSize',10);
+fsm.handles.accuracyThresholdAutoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.18 0.05 0.04 0.04],...
+    'String',fsm.accuracyThresholdAutoSwitch,'FontSize',10);
 
-% Temporal freq
+% Auto Switch after N trials above criteria (default 75%)
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.02 0.005 0.2 0.04],...
-    'String','Temporal frequency','FontSize',10);
-fsm.handles.temporalfreq = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.23 0.005 0.1 0.04],...
-    'String',fsm.temporalfreq,'FontSize',10);
+    'Position', [0.02 0.005 0.155 0.04],...
+    'String','Ntrls autoswitch window','FontSize',10);
+fsm.handles.NtrialsAutoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.18 0.005 0.04 0.04],...
+    'String',fsm.NtrialsAutoSwitch,'FontSize',10);
 
 % Prob laser
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -309,7 +311,7 @@ fsm.handles.stimPosOffset = uicontrol('Parent',fsm.handles.f,'Units','normalized
 
 % Blocks or Trial by trial changes in ori diff
 fsm.handles.blockORtbt = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-    'Position', [0.35 0.45 0.12 0.04],'String',{'Blocks','Trial By Trial'},...
+    'Position', [0.35 0.45 0.12 0.04],'String',{'Blocks (ori)','Trial By Trial (ori)'},...
     'Value',1,'FontSize',10);
 
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -390,6 +392,10 @@ fsm.handles.symmetricTask = uicontrol('Parent',fsm.handles.f,'Units','normalized
     'Position', [0.48 0.85 0.13 0.04],'String','Symmetric', ...
     'Value',0,'FontSize',10);
 
+% Auto Switch
+fsm.handles.autoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.23 0.005 0.12 0.04],'String','AutoSwitch', ...
+    'Value',0,'FontSize',10);
 
 
 %%%%% Buttons%%%%
@@ -866,17 +872,19 @@ fsm.stop = 1;
 
 %Update all the preset variables that may have been changed in the GUI. 
 fsm.token = get(fsm.handles.token,'string');
+fsm.accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'string'));
 fsm.Tspeedmaintainmeanadd = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string'));
 fsm.Tstimdurationmeanadd = str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
 fsm.Tspeedmaintainmin = str2num(get(fsm.handles.Tspeedmaintainmin,'string'));
+fsm.NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'string'));
 fsm.Tstimdurationmin = str2num(get(fsm.handles.Tstimdurationmin,'string'));
 fsm.nTrialsPerBlock = str2num(get(fsm.handles.nTrialsPerBlock,'string'));
 fsm.Trewdavailable = str2num(get(fsm.handles.Trewdavailable,'string'));
 fsm.lickthreshold = str2num(get(fsm.handles.lickthreshold,'string'));
 fsm.Tirrelgrating = str2num(get(fsm.handles.Tirrelgrating,'string'));
 fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
-fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
-fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
+%fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
+%fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
 fsm.Tirreldelay = str2num(get(fsm.handles.Tirreldelay,'string'));
 fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
 %fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
@@ -1029,6 +1037,34 @@ if length(correcttrials)>=5
     end
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
+
+
+% Auto change the block type 
+if get(fsm.handles.autoSwitch,'Value')
+    % Check which block, vis or odr
+    VISorODR = fsm.VISorODR;
+    accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'String')); 
+    % check how many trials of this block have been performed using fsm.VISorODR
+    lastBlockChange = find(diff(VISorODR),1,'last');
+    ntrlsSinceLastBlockChange = length(VISorODR)-lastBlockChange;
+    if isempty(ntrlsSinceLastBlockChange); ntrlsSinceLastBlockChange = fsm.trialnum;end
+    NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'String'));
+    if ntrlsSinceLastBlockChange >= NtrialsAutoSwitch % if more than NtrialsAutoSwitch trials in this block
+        if VISorODR(end) == 1 % if visual block then just check accuracy on visual
+            if mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100 > accuracyThresholdAutoSwitch % accuracy threshold
+                set(fsm.handles.VISorODR,'Value',2)
+                fprintf('AUTO SWITCHED TO ODOUR BLOCK!\n');
+            end
+        end
+        if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
+            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch && (nanmean(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))*100) < 100-accuracyThresholdAutoSwitch %  accuracy threshold
+                set(fsm.handles.VISorODR,'Value',1)
+                fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
+            end
+        end
+    end
+end
+
 
 % Making a plot of the performance dependent on orientation.
 % - Need to make it solely for visual block trials.

@@ -29,7 +29,7 @@ try
     %screenidR = allscreens(2);
     % new machine
     fsm.twomonitors = 1;
-    screenidL = 3;
+    screenidL = 1;
     if fsm.twomonitors; screenidR = 2; end
     
     % Setup imagingMode and window position/size depending on mode:
