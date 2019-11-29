@@ -402,6 +402,12 @@ fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style'
 fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
     'Position', [0.45 0.28 0.16 0.04],...
     'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
+
+% Plot options
+fsm.handles.plotOptions = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+    'Position', [0.35 0.28 0.8 0.04],'String',{'Psych','RunT'},...
+    'Value',1,'FontSize',10);
+
 %--------------------------------------------------------------------------
 % End make GUI
 
@@ -980,21 +986,49 @@ if length(correcttrials)>=5
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
-% Making a plot of the performance dependent on orientation.
-oriPerf= cell(720,1);
-for j = 1:length(correcttrials)
-if fsm.VISorODR(j) == 1
-    oriPerf{fsm.oridiff(j)}(end+1) = correcttrials(j);
-end
-end
-oriPerfIndex = find(~cellfun('isempty', oriPerf) & cellfun('length', oriPerf)>5); 
-oriPerfMean = cellfun(@mean, oriPerf, 'uni', 0);
 
-scatter(fsm.handles.ax(4), oriPerfIndex, [oriPerfMean{oriPerfIndex, :}])
-hold(fsm.handles.ax(4),'on');
-plot(fsm.handles.ax(4), oriPerfIndex,  [oriPerfMean{oriPerfIndex, :}])
-hold(fsm.handles.ax(4),'off');
-set(fsm.handles.ax(4),'ylim',[0 1],'xlim',[0 50]); 
+
+%Get the value of the plot options dropdown. 
+plotOption = get(fsm.handles.plotOptions,'Value');
+switch plotOption
+    case 'Psych'
+        % Making a plot of the performance dependent on orientation.
+        oriPerf= cell(720,1);
+        for j = 1:length(correcttrials)
+            if fsm.VISorODR(j) == 1
+                oriPerf{fsm.oridiff(j)}(end+1) = correcttrials(j);
+            end
+        end
+        oriPerfIndex = find(~cellfun('isempty', oriPerf) & cellfun('length', oriPerf)>5);
+        oriPerfMean = cellfun(@mean, oriPerf, 'uni', 0);
+        
+        scatter(fsm.handles.ax(4), oriPerfIndex, [oriPerfMean{oriPerfIndex, :}])
+        hold(fsm.handles.ax(4),'on');
+        plot(fsm.handles.ax(4), oriPerfIndex,  [oriPerfMean{oriPerfIndex, :}])
+        hold(fsm.handles.ax(4),'off');
+        set(fsm.handles.ax(4),'ylim',[0 1],'xlim',[0 50]);
+    case 'RunT'
+        splitTrialLog = regexp(triallog,'_', 'split');
+        splitTrialLog = splitTrialLog(~cellfun('isempty', splitTrialLog));
+        
+        runOnTimes = find(contains(splitTrialLog, '1to14'))-1;
+        runOffTimes = find(contains(splitTrialLog, '2to1'))-1;
+        
+        for ii = 1:length(runOffTimes)
+            runT(ii) = str2double(splitTrialLog{runOffTimes(ii)})-str2double(splitTrialLog{runOnTimes(ii)});
+        end
+        
+        stimOnIdx = find(contains(splitTrialLog, '2to3'))-1;
+        finalRun = (str2double(splitTrialLog{stimOnIdx})-str2double(splitTrialLog{runOnTimes(end)}))/1000;
+        
+        runT = runT/1000;
+        hold(fsm.handles.ax(4),'on');
+        histogram(fsm.handles.ax(4), runT, 'BinWidth', 0.2)
+        yLimits = ylim;
+        plot(fsm.handles.ax(4), [finalRun,finalRun],yLimits)
+        hold(fsm.handles.ax(4),'off');
+end
+
 
 function choose_stim
 global fsm
