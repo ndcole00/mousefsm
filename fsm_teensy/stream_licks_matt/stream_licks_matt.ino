@@ -11,6 +11,8 @@ int Sfreq = 40;// Sampling Freq Hz
 int threshA = .7*1000;//
 int threshB = .7*1000 + 1000;//
 
+int analogoutPin = 23;
+
 
 unsigned long PrevMillis = millis();
 unsigned long CurrMillis = millis();
@@ -18,6 +20,11 @@ unsigned long CurrMillis = millis();
 void setup() {
   Serial.begin(9600);
   pinMode(ledPin, OUTPUT);
+  pinMode(analogoutPin, OUTPUT);
+  analogWriteResolution(8);
+  analogWriteFrequency(analogoutPin, 40);
+  analogWrite(analogoutPin,128);
+
 }
 
 
