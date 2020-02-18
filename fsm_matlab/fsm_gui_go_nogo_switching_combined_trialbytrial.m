@@ -117,7 +117,7 @@ title('Performance by Ori');
 hold(fsm.handles.ax(3),'on');
 
 fsm.handles.ax(4)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.38 0.05 0.22 0.18]);
-title('Performance by orientation');
+title('Overall performance');
 
 % savedir
 fsm.handles.savedir = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -813,11 +813,11 @@ fsm.stop = 1;
 
 %Update all the preset variables that may have been changed in the GUI. 
 fsm.token = get(fsm.handles.token,'string');
-fsm.accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'string'));
+%fsm.accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'string'));
 fsm.Tspeedmaintainmeanadd = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string'));
 fsm.Tstimdurationmeanadd = str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
 fsm.Tspeedmaintainmin = str2num(get(fsm.handles.Tspeedmaintainmin,'string'));
-fsm.NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'string'));
+%fsm.NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'string'));
 fsm.Tstimdurationmin = str2num(get(fsm.handles.Tstimdurationmin,'string'));
 fsm.nTrialsPerBlock = str2num(get(fsm.handles.nTrialsPerBlock,'string'));
 fsm.Trewdavailable = str2num(get(fsm.handles.Trewdavailable,'string'));
@@ -874,13 +874,14 @@ fsm.FAirrelOutcome = [];
 fsm.trialend = 0;
 fsm.oridiff = [];
 fsm.irrelgrating = [];
-fsm.irrelodour = [];
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
 fsm.spdRngLowByTrial = [];
 fsm.punishTByTrial = [];
 fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
+fsm.visOutcome = [];
+fsm.odrOutcome = [];
 
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
@@ -948,6 +949,12 @@ elseif ~isempty(strfind(triallog, '4to9')); fsm.outcome(fsm.trialnum) = 2;fprint
 else error ('here');
 end
 
+if fsm.attend == 1
+    fsm.visOutcome(fsm.trialnum) = fsm.outcome(fsm.trialnum); fsm.odrOutcome(fsm.trialnum) = NaN;
+elseif fsm.attend == 2
+    fsm.visOutcome(fsm.trialnum) = NaN; fsm.odrOutcome(fsm.trialnum) = fsm.outcome(fsm.trialnum);
+end
+
 % Also find FAs to Irrel stims (FAirrel)
 % FAirrel:  Irrel 10 to 25, 21 to 26, 22 to 27, 23 to 28, 24 to 29
 if ~isempty(strfind(triallog, '10to25'))||~isempty(strfind(triallog, '21to26'))||~isempty(strfind(triallog, '22to27'))||~isempty(strfind(triallog, '23to28'))...
@@ -962,39 +969,34 @@ end
 % update performance plot
 % 20 trial window
 mrks = {'ro','k*','b^'};
-correcttrials = (fsm.outcome == 1) + (fsm.outcome == 2);
+VISorODR = fsm.attend;
+visCorrecttrials = (fsm.visOutcome == 1) + (fsm.visOutcome == 2);
+odrCorrecttrials = (fsm.odrOutcome == 1) + (fsm.odrOutcome == 2);
 yplot = [];
-for i = 1:length(correcttrials)
-    yplot(i) = mean(correcttrials(max([1 i-20]):i))*100;
+for i = 1:length(visCorrecttrials)
+    visYPlot(i) = nanmean(visCorrecttrials(max([1 i-20]):i))*100;
+    odrYPlot(i) = nanmean(odrCorrecttrials(max([1 i-20]):i))*100;
     yplotFAirrel(i) = nanmean(fsm.FAirrelOutcome(max([1 i-20]):i))*100;
 end
-if length(correcttrials)>=5
-    VISorODR = get(fsm.handles.VISorODR,'Value');
-    plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{VISorODR});
-    if VISorODR == 2
+if length(visCorrecttrials)>=5 % to split into 2 cued
+    if VISorODR == 1
+    plot(fsm.handles.ax(2),length(visCorrecttrials),visYPlot(end),mrks{1});
+    elseif VISorODR == 2
         hold on;
-        plot(fsm.handles.ax(2),length(correcttrials),yplotFAirrel(end),mrks{3});
+        plot(fsm.handles.ax(2),length(odrCorrecttrials),odrYPlot(end),mrks{2})
+        plot(fsm.handles.ax(2),length(odrCorrecttrials),yplotFAirrel(end),mrks{3});
     end
 end
-set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
+set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(visCorrecttrials)]);
 
 
-% Making a plot of the performance dependent on orientation.
-% - Need to make it solely for visual block trials.
-oriPerf= cell(720,1);
-for j = 1:length(correcttrials)
-if fsm.VISorODR(j) == 1
-    oriPerf{fsm.oridiff(j)}(end+1) = correcttrials(j);
-end
-end
-oriPerfIndex = find(~cellfun('isempty', oriPerf) & cellfun('length', oriPerf)>5); 
-oriPerfMean = cellfun(@mean, oriPerf, 'uni', 0);
+% Summary plot of performances
+    percentCorrect = [nanmean(visCorrecttrials)*100 nanmean(odrCorrecttrials)*100 nanmean(fsm.FAirrelOutcome)*100];
+    cla(fsm.handles.ax(4));
+    bar(fsm.handles.ax(4),[1 2 3],percentCorrect); hold on;
+    xticks([1 2 3]);xticklabels({'Vis Rel','Odour','Vis Irrel'});
+    xlabel('Stim type'); ylabel('% Correct');
 
-scatter(fsm.handles.ax(4), oriPerfIndex, [oriPerfMean{oriPerfIndex, :}])
-hold(fsm.handles.ax(4),'on');
-plot(fsm.handles.ax(4), oriPerfIndex,  [oriPerfMean{oriPerfIndex, :}])
-hold(fsm.handles.ax(4),'off');
-set(fsm.handles.ax(4),'ylim',[0 1],'xlim',[0 50]); 
 
 function choose_stim
 global fsm
@@ -1005,6 +1007,7 @@ if rand < str2num(get(fsm.handles.pAttendVis,'String'))
 else
     VISorODR = 2;% Ignore Visual, Attend Odour trial
 end
+fsm.attend = VISorODR;
 fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
 
 fsm.TspeedMaintainMinByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmin,'String'));
@@ -1061,22 +1064,10 @@ switch VISorODR
         end
         
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
-        
-        % select if irrelevant ODOUR presented
-        if get(fsm.handles.symmetricTask,'Value') && (rand < str2num(get(fsm.handles.pirrel,'String'))) % Irrel odour
-            fsm.irrelodour(fsm.trialnum+1) = 1;
-            % select irrelevant odour
-            if rand < .5 
-                fsm.odour(fsm.trialnum+1) = 1;
-            else
-                fsm.odour(fsm.trialnum+1) = 2;
-            end
-            set(fsm.handles.odour, 'String',['Odour: ' num2str(fsm.odour(fsm.trialnum+1))]);
-        else
-            fsm.irrelodour(fsm.trialnum+1) = 2; % no irrel odour
-            set(fsm.handles.odour, 'String',['Odour: ']);
-            fsm.odour(fsm.trialnum+1) = NaN;
-        end
+  
+        set(fsm.handles.odour, 'String',['Odour: ']);
+        fsm.odour(fsm.trialnum+1) = NaN;
+
   
     case 2 % odour block
         fsm.VISorODR(fsm.trialnum+1) = 2;
