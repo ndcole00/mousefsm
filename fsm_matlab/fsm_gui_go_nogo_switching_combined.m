@@ -8,7 +8,7 @@
 %          This one can present optogenetic laser (PWM) at any time wrt
 %          stim on EXCEPT starting after stim has started (to do)
 
-function fsm_gui_go_nogo_switching_combined()
+function fsm_newlasertiming()
 
 close all
 clearvars -global fsm
@@ -92,6 +92,8 @@ fsm.spdRngLowByTrial = [];
 fsm.punishTByTrial = [];
 fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
+fsm.itiLaser = [];
+fsm.psL = 9; % first ISI no laser
 %--------------------------------------------------------------------------
 % make GUI
 for i = 1 % IF statement just to enable folding of this chunk of code
@@ -397,6 +399,11 @@ fsm.handles.autoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','
     'Position', [0.23 0.005 0.12 0.04],'String','AutoSwitch', ...
     'Value',0,'FontSize',10);
 
+% Laser on during inter-trial-interval
+fsm.handles.itiLaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.23 0.05 0.12 0.04],'String','ITI laser','TooltipString','Laser on only in inter-trial-interval', ...
+    'Value',0,'FontSize',10);
+
 
 %%%%% Buttons%%%%
 % Start button
@@ -478,6 +485,7 @@ global fsm
 keeprunning = 1;fsm.stop = 0;
 while keeprunning
     
+    
     choose_stim % decide which stimlus to give
     fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
     
@@ -491,6 +499,7 @@ while keeprunning
     rewT  = str2num(get(fsm.handles.rewd,'string'));
     iti   = str2num(get(fsm.handles.Titi,'string'));
     extraT= str2num(get(fsm.handles.Textrawait,'string'));
+    fsm.itiLaser = get(fsm.handles.itiLaser ,'Value'); % whether laser timing is confined to ITI window
     %     mcvT  = str2num(get(fsm.handles.Tminorientationview,'string'));
     pT    = str2num(get(fsm.handles.punishT,'string'));
     fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
@@ -500,7 +509,7 @@ while keeprunning
     %     fsm.orientationchange = str2num(get(fsm.handles.orientationchange,'String'));
     %     if ~fsm.iscuetrial ; cueT = 0; end
     %     fsm.difflist = str2num(get(fsm.handles.orientationchangelist,'String'));
-    
+    psL = fsm.psL;
     
     % digiOut mapping
     R   =  2^0; %teensy pin 2, reward
@@ -512,6 +521,12 @@ while keeprunning
     Irr  = 2^6; %teensy pin 8, Irrelevant vis, should be on with the vis bit
     L    = 2^7; %teensy pin 9, trigger for optogenetic laser
     
+    if fsm.itiLaser == 1 && get(fsm.handles.VISorODR,'Value')==1
+        inL1 = 40;
+    else
+        inL1 = 1;
+    end
+    
     Rew = R;
     iStim = 0;
     
@@ -521,6 +536,11 @@ while keeprunning
             Stim = Vis1+Bln;% rewarded grating (+45 degrees)
             lok1 = 5;% rewd
             fa = 3;% refractory period
+            if fsm.itiLaser == 1
+            psL = 39; % post-stim laser on
+            else
+                psL = 9; % post-stim laser off
+            end
             
             if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
                 IR = 10;  %Irrel odour on
@@ -531,6 +551,7 @@ while keeprunning
                     iStim = Odr2+Irr;% Odour2
                 end
             else
+                
                 IR = 3; % no irrel grating
                 IR2 = 15;
             end
@@ -547,8 +568,15 @@ while keeprunning
             Stim = Vis2+Bln;% non rewarded grating (-45 degrees)
             lok1 = 8;% punish
             fa = 8;% punish
-            AR = 9; % no auto reward
+            
             waitT = 1;% hard-coded! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
+            if fsm.itiLaser == 1
+            AR = 39; % no auto reward, laser on
+            psL = 39; % post-stim laser on
+            else
+                AR = 9; % no auto reward
+                psL = 9; % post-stim, laser off
+            end
             
             if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
                 IR = 10;  %Irrel odour on
@@ -567,6 +595,8 @@ while keeprunning
             Stim = Odr1;% Odr1
             lok1 = 5;% rewd
             fa = 3;% refractory period
+            psL = 9; % post-stim laser off
+            
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
                 IR2 = 16;
@@ -591,6 +621,8 @@ while keeprunning
             Stim = Odr2;% Odr2
             lok1 = 8;% punish
             fa = 8;% punish
+            psL = 9; % post-stim laser off
+            
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
                 IR2 = 16;
@@ -622,9 +654,9 @@ while keeprunning
     end
     
     L2 = 0; L3 = 0; pwr2 = 0; Gap = 0; % Set = 0 to start
-    Lpre = 0; Lpst = 0; IR3 = IR;
+    Lpre = 0; Lpst = iti; IR3 = IR;
     % if laser trial
-    if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) 
+    if rand < pL && get(fsm.handles.VISorODR,'Value')==1 && fsm.itiLaser == 0
         LR = 12;
         
         % choose laser power (PWM)
@@ -639,10 +671,8 @@ while keeprunning
         pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
         
         % set laser onset times
-        laserRange = str2num(get(fsm.handles.laserRange,'string'));
-        assert(laserRange(1)<=0,'Laser range first number must be 0 or negative')
-        assert(laserRange(1)<laserRange(2),'Laser range first must be smaller')
-        Lpre = -laserRange(1);
+        laserRange = [0 2.5];
+        Lpre = laserRange(1);
         Lpst = laserRange(2);
         
         if laserRange(2)<0
@@ -667,35 +697,50 @@ while keeprunning
                 L3 = 0;
             end
         end
+    elseif rand < pL &&  fsm.itiLaser == 1 % laser on during inter-trial-interval
+        
+        LR = IR;
+        
+        % choose laser power (PWM)
+        powers = str2num(get(fsm.handles.laserpoweroptions,'string'));
+        if rem(fsm.trialnum,length(powers)) == 0
+            fsm.plist = randperm(length(powers));
+        end
+        pwr = powers(fsm.plist(rem(fsm.trialnum,length(powers))+1));
+        
+        fsm.laserpower(fsm.trialnum+1) = pwr;
+        set (fsm.handles.laserpoweroptions_label,'String',['Laser powers (%):' num2str(pwr)]);
+        pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
+        
         
     else % if not a laser trial
         LR = IR;
         set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
     end
+    fsm.psL = psL;
     Lon = L+Bln;
-    
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
         
 %  spd in   spd out     lick    Tup       Timer         digiOut   AnalogOut
-    0           0        0       1         0.01           Bln        0      ;...% state 0 init
+    0           0        0       inL1      0.01           Bln        0      ;...% state 0 init
     14          1        1       1         100            Bln        0      ;...% state 1 wait for speed in
     2           1        2       LR        spdT           Bln        0      ;...% state 2 maintain speed
     3           3        fa      4         stmT-Lpst      Stim+L3    pwr2   ;...% state 3 Stim on, refractory period
     4           4        lok1    AR        waitT          Stim+L3    pwr2   ;...% state 4 Stim on, reward zone, wait for lick
     5           5        5       6         rewT           Rew+L3     pwr2   ;...% state 5 Stim on, reward on
-    6           6        6       9         extraT         Stim+L3    pwr2   ;...% state 6 Stim on, extra view
+    6           6        6       psL       extraT         Stim+L3    pwr2   ;...% state 6 Stim on, extra view
     7           7        7       6         rewT           Rew+L3     pwr2   ;...% state 7 auto reward
     8           8        8       4         pT             Stim+L3    pwr2   ;...% state 8 punish time
     9           9        9       99        iti            Bln        0      ;...% state 9 ITI
     10          10       34      30        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 10 irrel grating
     11          11       11      3         iwT            Bln        0      ;...% state 11 delay after irrel grating
     12          12       12      IR3       Lpre           Lon        pwr    ;...% state 12 laser on pre stim
-    13          13       13      9         .01            Bln        0      ;...% state 13 Miss 
+    13          13       13      psL       .01            Bln        0      ;...% state 13 Miss 
     14          14       14      2         .2             Bln        0      ;...% state 14 to prevent fast transitions
     15          15       15      3         Lpst           Stim+L     pwr    ;...% state 15 stim on + laser on continuing into stim (used in case laser is on after stim but for less than min view time)
     16          16       25      21        Lpst/5         iStim+L    pwr    ;...% state 16 istim on + laser on continuing into istim, lick here will lead to catch state  
     17          17       17      IR        Gap            Bln        0      ;...% state 17 In case gap after laser off and stim on
-    0           0        0       0         0              0          0      ;...% state 18 blank for future use
+    0           0         0      0         0              0          0      ;...% state 18 blank for future use
     0           0        0       0         0              0          0      ;...% state 19 blank for future use
     0           0        0       0         0              0          0      ;...% state 20 blank for future use
 
@@ -724,7 +769,12 @@ while keeprunning
     36          36       36      37        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 36 istim on (1/5th to allow recording FA on irrels)
     37          37       37      38        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 37 istim on (1/5th to allow recording FA on irrels)
     38          38       38      11        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 38 istim on (1/5th to allow recording FA on irrels)
- 
+    
+    39          39       39      99         iti           L          pwr    ;...% state 39 ITI with laser on
+    42          40       40      41         100           L          pwr    ;...% state 40 wait for speed in, laser on
+    41          40       41      LR         spdT          L          pwr    ;...% state 41 maintain speed, laser on
+    42          42       42      41         .2            L          pwr    ;...% state 42,to prevent fast transitions, laser on (maybe unnecessary)
+    
     ];
 
 stm (:,5) = round(stm(:,5)*1000); % sec to ms
@@ -1003,7 +1053,7 @@ global fsm
 if ~isempty(strfind(triallog, '4to7'))||~isempty(strfind(triallog, '4to13')); fsm.outcome(fsm.trialnum) = 3;fprintf('Miss\n');% miss
 elseif ~isempty(strfind(triallog, '4to5')); fsm.outcome(fsm.trialnum) = 1; fprintf('Hit\n');% hit
 elseif ~isempty(strfind(triallog, '4to8'))||~isempty(strfind(triallog, '3to8')); fsm.outcome(fsm.trialnum) = 4;fprintf('FA\n');% FA
-elseif ~isempty(strfind(triallog, '4to9')); fsm.outcome(fsm.trialnum) = 2;fprintf('CR\n');% CR
+elseif ~isempty(strfind(triallog, '4to9')) || ~isempty(strfind(triallog, '4to39')); fsm.outcome(fsm.trialnum) = 2;fprintf('CR\n');% CR
 else error ('here');
 end
 
@@ -1057,9 +1107,11 @@ if get(fsm.handles.autoSwitch,'Value')
             end
         end
         if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
-            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch && (nanmean(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))*100) < 100-accuracyThresholdAutoSwitch %  accuracy threshold
+            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch && (all(isnan(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))) || (nanmean(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))*100) < 100-accuracyThresholdAutoSwitch) %  accuracy threshold
                 set(fsm.handles.VISorODR,'Value',1)
                 fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
+
+                
             end
         end
     end
