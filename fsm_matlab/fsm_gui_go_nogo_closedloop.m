@@ -7,8 +7,9 @@ clearvars -global fsm
 global fsm
 
 % Initialise
-try fsm.comport = num2str(GetComPort ('USB Serial Device'));
-catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+% try fsm.comport = num2str(GetComPort ('USB Serial Device'));
+% catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+fsm.comport = helper.fetchScreensAndComport('com');
 
 fsm.TeensyCode = 'fsm_gng_switching_closedloop.ino';
 if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1

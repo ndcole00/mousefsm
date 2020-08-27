@@ -1,5 +1,5 @@
 function stim_machine_init_go_nogo_switching_USBcom
-
+Screen('Preference', 'SkipSyncTests', 1);
 global fsm
 
 %
@@ -20,7 +20,7 @@ try
     AssertOpenGL;
     
     % Disable synctests for this quick demo:
-    %fsm.oldSyncLevel = Screen('Preference', 'SkipSyncTests', 2);
+    fsm.oldSyncLevel = Screen('Preference', 'SkipSyncTests', 2);
     
     % Choose screens:
     allscreens = Screen('Screens');
@@ -28,9 +28,12 @@ try
     %screenidR = allscreens(end-1);
     %screenidR = allscreens(2);
     % new machine
+    
+    screenIDs = helper.fetchScreensAndComport('screens');
+    
     fsm.twomonitors = 1;
-    screenidL = 1;
-    if fsm.twomonitors; screenidR = 2; end
+    screenidL = screenIDs(1);
+    if fsm.twomonitors; screenidR = screenIDs(2); end
     
     % Setup imagingMode and window position/size depending on mode:
     rect = [];

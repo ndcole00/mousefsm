@@ -1,28 +1,38 @@
-
 % FSMteensy
 % Adil Khan, Basel 2016
 
 % 20160912 switches from go nogo task to odr discrim
 % 20161102 used binary format for digiout
 % 20170819 uses teensy digital line 12 for trial end instead of serial
-% 20181206 uses USB serial commands to send all info from Teensy
-function fsm_gui_go_nogo_switching_difficultyRange_USBcom()
+% 20161103 PWM for control of laser power, extra column on stm
+%          This one can present optogenetic laser (PWM) at any time wrt
+%          stim on EXCEPT starting after stim has started (to do)
+
+function fsm_gui_go_nogo_switching_combined()
 
 close all
 clearvars -global fsm
 global fsm
-% Initialise
-% try fsm.comport = num2str(GetComPort ('USB Serial Device'));
-% catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
 
-fsm.comport = helper.fetchScreensAndComport('com');
-
-fsm.TeensyCode = 'fsm_gng_switching_USBcom.ino';
+% Decide which version to run based on which PC it is (USBcom vs non USBcom)
 if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
+    fsm.version = 'DAQcom';
+    fsm.USBcomFlag = 0;
     fsm.savedir = 'C:\Data\FSM_log\';
-else
+else % behaviour boxes
+    fsm.version = 'USBcom';
+    fsm.USBcomFlag = 1;
     fsm.savedir = 'C:\Behavioural_data\FSM_log\';
 end
+
+fsm.TeensyCode = 'fsm_gng_switching_combined.ino'; % This works for both USB and DAQcom
+fsm.PCname = getenv('computername');
+
+% Initialise
+try fsm.comport = num2str(GetComPort ('USB Serial Device'));
+catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+
+
 fsm.token = 'M99_B1';
 fsm.fname = '';
 fsm.spdrnghigh = 220;
@@ -66,6 +76,15 @@ fsm.oridifflist = [30 20 10];
 fsm.stimPosOffset = 0; %Determines stimulus position on the x-axis of the screen. +560 max forwards to -560 max backwards
 fsm.nTrialsPerBlock = 40;
 fsm.blockchangetrial = 1;
+fsm.laserpower = [];
+fsm.laserpoweroptions = '4,20,33,100';
+powers = str2num(fsm.laserpoweroptions);
+fsm.plist = randperm(length(powers));
+fsm.laserRange = '-.1,1.5'; % wrt stim om
+fsm.outcome = [];
+fsm.FAirrelOutcome = [];
+fsm.NtrialsAutoSwitch = 40;
+fsm.accuracyThresholdAutoSwitch = 75;
 
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
@@ -75,7 +94,7 @@ fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
 %--------------------------------------------------------------------------
 % make GUI
-
+for i = 1 % IF statement just to enable folding of this chunk of code
 fsm.handles.f = figure('Units','normalized','Position',[0.05 0.4 0.5 0.5],...
     'Toolbar','figure');
 set(fsm.handles.f,'CloseRequestFcn',@my_closefcn);
@@ -89,8 +108,8 @@ fsm.handles.ax(2)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0
 title('Performance');
 hold(fsm.handles.ax(2),'on');
 
-fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Visible','off','Units','normalized','Position',[0.35 .03 0.27 0.24]);
-%try imshow ('M:\Adil\FSM\contrast change task schematic.jpg');end
+fsm.handles.ax(3)=axes('Parent',fsm.handles.f,'Units','normalized','Visible','off','Position',[0.35 .03 0.27 0.24]);
+title('Performance by Ori');
 hold(fsm.handles.ax(3),'on');
 
 fsm.handles.ax(4)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.38 0.05 0.22 0.18]);
@@ -111,14 +130,6 @@ uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','i
 fsm.handles.token = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
     'Position', [0.23 0.85 0.1 0.04],...
     'String',fsm.token,'FontSize',10);
-
-% spd rng high
-uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.02 0.8 0.2 0.04],...
-    'String','Speed range high','FontSize',10);
-fsm.handles.spdrnghigh = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.23 0.8 0.1 0.04],...
-    'String',fsm.spdrnghigh,'FontSize',10,'Callback', @call_change_spdrnghigh);
 
 % spd rng low
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -242,29 +253,37 @@ fsm.handles.pirrel = uicontrol('Parent',fsm.handles.f,'Units','normalized','Styl
     'Position', [0.23 0.1 0.1 0.04],...
     'String',fsm.pirrel,'FontSize',10);
 
-% Spatial freq
+% Accuracy threshold for auto switch
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.02 0.05 0.2 0.04],...
-    'String','Spatial frequency','FontSize',10);
-fsm.handles.spatialfreq = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.23 0.05 0.1 0.04],...
-    'String',fsm.spatialfreq,'FontSize',10);
+    'Position', [0.02 0.05 0.155 0.04],...
+    'String','Accuracy threshold Auto switch ','FontSize',10);
+fsm.handles.accuracyThresholdAutoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.18 0.05 0.04 0.04],...
+    'String',fsm.accuracyThresholdAutoSwitch,'FontSize',10);
 
-% Temporal freq
+% Auto Switch after N trials above criteria (default 75%)
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.02 0.005 0.2 0.04],...
-    'String','Temporal frequency','FontSize',10);
-fsm.handles.temporalfreq = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.23 0.005 0.1 0.04],...
-    'String',fsm.temporalfreq,'FontSize',10);
+    'Position', [0.02 0.005 0.155 0.04],...
+    'String','Ntrls autoswitch window','FontSize',10);
+fsm.handles.NtrialsAutoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.18 0.005 0.04 0.04],...
+    'String',fsm.NtrialsAutoSwitch,'FontSize',10);
 
 % Prob laser
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.65 0.17 0.04],...
+    'Position', [0.35 0.8 0.07 0.04],...
     'String','Prob laser','FontSize',10);
 fsm.handles.plaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.53 0.65 0.08 0.04],...
+    'Position', [0.43 0.8 0.04 0.04],...
     'String',fsm.plaser,'FontSize',10);
+
+% Laser range wrt stim. inf means end with stim
+uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.55 0.17 0.04],...
+    'String','OP laser range wrt stim','FontSize',10);
+fsm.handles.laserRange = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.53 0.55 0.08 0.04],...
+    'String',fsm.laserRange,'FontSize',10);
 
 % Lick threshold
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -276,10 +295,10 @@ fsm.handles.lickthreshold = uicontrol('Parent',fsm.handles.f,'Units','normalized
 %
 % Extra wait time
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.55 0.17 0.04],...
+    'Position', [0.35 0.85 0.07 0.04],...
     'String','Extra wait time','FontSize',10);
 fsm.handles.Textrawait = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-    'Position', [0.53 0.55 0.08 0.04],...
+    'Position', [0.43 0.85 0.04 0.04],...
     'String',fsm.extrawait,'FontSize',10);
 
 % Horizontal position of patch
@@ -292,7 +311,7 @@ fsm.handles.stimPosOffset = uicontrol('Parent',fsm.handles.f,'Units','normalized
 
 % Blocks or Trial by trial changes in ori diff
 fsm.handles.blockORtbt = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-    'Position', [0.35 0.45 0.12 0.04],'String',{'Blocks','Trial By Trial'},...
+    'Position', [0.35 0.45 0.12 0.04],'String',{'Blocks (ori)','Trial By Trial (ori)'},...
     'Value',1,'FontSize',10);
 
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -302,38 +321,6 @@ fsm.handles.nTrialsPerBlock = uicontrol('Parent',fsm.handles.f,'Units','normaliz
     'Position', [0.56 0.45 0.05 0.04],...
     'String',fsm.nTrialsPerBlock,'FontSize',10);
 
-
-% % Ntrials with cue
-% uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.42 0.5 0.1 0.04],...%[0.35 0.5 0.08 0.04]
-%     'String','Ntrials with cue','FontSize',10);
-% fsm.handles.ntrialswithcue = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-%     'Position', [0.53 0.5 0.08 0.04],...
-%     'String',fsm.ntrialswithcue,'FontSize',10);
-%
-% % Min orientation view time
-% uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.35 0.45 0.17 0.04],...
-%     'String','Min orientation view T','FontSize',10);
-% fsm.handles.Tminorientationview = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-%     'Position', [0.53 0.45 0.08 0.04],...
-%     'String',fsm.Tminorientationview,'FontSize',10);
-%
-% % Type of session: left/right OR front/back
-% fsm.handles.lrORfb = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-%     'Position', [0.35 0.40 0.13 0.04],'String',{'Left/Right','Front/Back'},...
-%     'Value',1,'FontSize',10);
-%
-% Vis or odr block
-fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-    'Position', [0.35 0.40 0.12 0.04],'String',{'Visual','Odour'},...
-    'Value',1,'FontSize',10);
-%
-% % Both sides Ori change?
-% fsm.handles.bothsides = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-%     'Position', [0.35 0.25 0.12 0.04],'String','Both sides change?',...
-%     'Value',1,'FontSize',10);
-%
 % Punish time
 uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
     'Position', [0.48 0.40 0.07 0.04],...
@@ -342,31 +329,57 @@ fsm.handles.punishT = uicontrol('Parent',fsm.handles.f,'Units','normalized','Sty
     'Position', [0.56 0.40 0.05 0.04],...
     'String',fsm.punishT,'FontSize',10);
 
+% Vis or odr block
+fsm.handles.VISorODR = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+    'Position', [0.35 0.40 0.12 0.04],'String',{'Visual','Odour'},...
+    'Value',1,'FontSize',10);
+
+% Laser power options
+fsm.handles.laserpoweroptions_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.65 0.17 0.04],...
+    'String','Laser powers (%):0','FontSize',10);
+fsm.handles.laserpoweroptions = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+    'Position', [0.53 0.65 0.08 0.04],...
+    'String',fsm.laserpoweroptions,'FontSize',10);
+ 
+
 %%% Indicators %%%
 
 % Filename
 fsm.handles.fname = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.9 0.26 0.04],...
+    'Position', [0.02 0.8 0.31 0.04],...
     'String',['Filename: ' fsm.fname],'FontSize',10,'HorizontalAlignment','left');
 
 % Trial number
 fsm.handles.trialnum = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.85 0.12 0.04],...
+    'Position', [0.35 0.9 0.12 0.04],...
     'String',['Trial Number: ' num2str(fsm.trialnum)],'FontSize',10,'HorizontalAlignment','left');
 
 % Odour
 fsm.handles.odour = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.8 0.13 0.04],...
+    'Position', [0.35 0.7 0.12 0.04],...
     'String',['Odour: '],'FontSize',10,'HorizontalAlignment','left');
+
+% Grating orientation
+fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+    'Position', [0.35 0.75 0.12 0.04],...
+    'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
+
+%%% Checkboxes %%%
 
 % Auto reward
 fsm.handles.autorewd = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-    'Position', [0.35 0.75 0.26 0.04],'String','Auto Reward',...
+    'Position', [0.48 0.9 0.13 0.04],'String','Auto Reward',...
     'Value',1,'FontSize',10);
 
 % Speed monitor
 fsm.handles.speedMonitorFlag = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
     'Position', [0.48 0.75 0.13 0.04],'String','Speed Monitor',...
+    'Value',0,'FontSize',10);
+
+% Only laser
+fsm.handles.onlylaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.48 0.7 0.1 0.04],'String','Only laser',...
     'Value',0,'FontSize',10);
 
 % Single or double monitor
@@ -379,41 +392,43 @@ fsm.handles.symmetricTask = uicontrol('Parent',fsm.handles.f,'Units','normalized
     'Position', [0.48 0.85 0.13 0.04],'String','Symmetric', ...
     'Value',0,'FontSize',10);
 
-% Grating orientation
-fsm.handles.orientation = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-    'Position', [0.35 0.7 0.26 0.04],...
-    'String',['Orientation: ' num2str(fsm.orientation)],'FontSize',10,'HorizontalAlignment','left');
+% Auto Switch
+fsm.handles.autoSwitch = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.23 0.005 0.12 0.04],'String','AutoSwitch', ...
+    'Value',0,'FontSize',10);
 
-% % State
-% fsm.handles.state = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-%     'Position', [0.35 0.5 0.06 0.04],...
-%     'String',['State: ' num2str(fsm.state)],'FontSize',10,'HorizontalAlignment','left');
 
 %%%%% Buttons%%%%
 % Start button
 fsm.handles.start = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.35 0.33 0.13 0.07],...
+    'Position', [0.35 0.31 0.13 0.08],...
     'String','Start','BackgroundColor', 'green','Callback', @call_start);
 
 % Stop button
 fsm.handles.stop = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.49 0.33 0.12 0.07],...
+    'Position', [0.49 0.31 0.12 0.08],...
     'String','Stop','BackgroundColor', 'red','enable','off','Callback', @call_stop);
 
 % Toggle valve button
 fsm.handles.toggleRewdValve = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
-    'Position', [0.45 0.28 0.16 0.04],...
+    'Position', [0.49 0.265 0.12 0.04],...
     'String','Toggle Rewd Valve','BackgroundColor', 'cyan','Callback', @call_toggleRewdValve);
+
+% Set parameters for orimap
+fsm.handles.setOrimapParams = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','pushbutton',...
+    'Position', [0.35 0.265 0.13 0.04],...
+    'String','OriMap params', 'BackgroundColor', 'cyan','Callback', @call_setOrimapParams);
+
+
 %--------------------------------------------------------------------------
 % End make GUI
-
+end
 
 % start serial port
 fsm.ard=serial(fsm.comport,'BaudRate',9600); % create serial communication object on port COM7
 set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
 fprintf('serial port opened\n')
-
 
 % check if correct teensy code is loaded
 fprintf(fsm.ard,'%s','T');
@@ -427,7 +442,11 @@ else
 end
 
 % initiate the stim machine;
-stim_machine_init_go_nogo_switching_USBcom
+if strmatch (fsm.version,'DAQcom')
+    stim_machine_init_go_nogo_switching
+elseif strmatch (fsm.version,'USBcom')
+    stim_machine_init_go_nogo_switching_USBcom
+end
 figure(fsm.handles.f)
 
 % clear the buffer
@@ -445,6 +464,8 @@ set(fsm.handles.toggleRewdValve,'enable','off')
 set(fsm.handles.stop,'enable','on')
 cla(fsm.handles.ax(2));
 cla(fsm.handles.ax(3));
+powers = str2num(get(fsm.handles.laserpoweroptions,'string'));
+fsm.plist = randperm(length(powers));
 Xrng_speed_plot;
 drawnow;pause(0.00000001)
 
@@ -474,9 +495,8 @@ while keeprunning
     pT    = str2num(get(fsm.handles.punishT,'string'));
     fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
     pL    = str2num(get(fsm.handles.plaser,'string'));
-     % put current values in textboxes
+    % put current values in textboxes
     set(fsm.handles.Tspeedmaintainmin_label,'string',['T speed maintain min (' sprintf('%.2f',spdT) ')'])
-  
     %     fsm.orientationchange = str2num(get(fsm.handles.orientationchange,'String'));
     %     if ~fsm.iscuetrial ; cueT = 0; end
     %     fsm.difflist = str2num(get(fsm.handles.orientationchangelist,'String'));
@@ -504,6 +524,7 @@ while keeprunning
             
             if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
                 IR = 10;  %Irrel odour on
+                IR2 = 16;
                 if fsm.odour(fsm.trialnum+1) == 1
                     iStim = Odr1+Irr;% Odour1
                 else
@@ -511,7 +532,9 @@ while keeprunning
                 end
             else
                 IR = 3; % no irrel grating
+                IR2 = 15;
             end
+            
             % auto reward or not
             if get(fsm.handles.autorewd ,'Value')==1
                 AR = 7;
@@ -520,14 +543,16 @@ while keeprunning
             end
             Rew = Rew+Vis1+Bln;
         case 2 % vis non rewarded
-            %IR = 3;  
+            %IR = 3;  %
             Stim = Vis2+Bln;% non rewarded grating (-45 degrees)
             lok1 = 8;% punish
             fa = 8;% punish
             AR = 9; % no auto reward
             waitT = 1;% hard-coded! 05-09-17, to make non rew stim not stay on too long if you need to increase Trewdavailable
+            
             if fsm.irrelodour(fsm.trialnum+1) == 1 % if symmetrical task
                 IR = 10;  %Irrel odour on
+                IR2 = 16;
                 if fsm.odour(fsm.trialnum+1) == 1
                     iStim = Odr1+Irr;% Odour1
                 else
@@ -535,20 +560,24 @@ while keeprunning
                 end
             else
                 IR = 3; % no irrel grating
+                IR2 = 15;
             end
-        
+
         case 3 % odour rewarded
             Stim = Odr1;% Odr1
             lok1 = 5;% rewd
             fa = 3;% refractory period
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
+                IR2 = 16;
                 if fsm.orientation(fsm.trialnum+1) == fsm.stim1ori;
                     iStim = Vis1+Irr+Bln;% +45 degrees
                 else
                     iStim = Vis2+Irr+Bln;% -45 degrees
                 end
-            else IR = 3; % no irrel grating
+            else
+                IR = 3; % no irrel grating
+                IR2 = 15;
             end
             
             % auto reward or not
@@ -564,46 +593,135 @@ while keeprunning
             fa = 8;% punish
             if fsm.irrelgrating(fsm.trialnum+1) == 1;
                 IR = 10;  %Irrel grating on
+                IR2 = 16;
                 if fsm.orientation(fsm.trialnum+1) == fsm.stim1ori;
                     iStim = Vis1+Irr+Bln;% +45 degrees
                 else
                     iStim = Vis2+Irr+Bln;% -45 degrees
                 end
-            else IR = 3; % no irrel grating
+            else
+                IR = 3; % no irrel grating
+                IR2 = 15;
             end
             AR = 9; % no auto reward
             
     end
+    pwr = 0;
+    pwr2 = 0;
     
-    %Stim = Stim + S; % Generic stim on signal added
-    
-    if rand < pL % laser trial
-        LR = 12;
-        Stim = Stim + L;
-        Rew = Rew + L;
-    else
-        LR = IR;
+    % if only laser trials (OP)
+    if get(fsm.handles.onlylaser,'Value')
+        Stim = Bln;Rew = Bln; iStim = Bln; % no stim signals
+        pL = 1; %Force laser trials
+        set(fsm.handles.autorewd, 'Value',0)
+        set(fsm.handles.VISorODR, 'Value',1)
+        %set(fsm.handles.laserRange,'string','-1.5,0')
+        fa = 3;
+        lok1=5;
+        waitT = 0;rewT=0;extraT=0;
     end
-    Lon = L;
     
+    L2 = 0; L3 = 0; pwr2 = 0; Gap = 0; % Set = 0 to start
+    Lpre = 0; Lpst = iti; IR3 = IR;
+    % if laser trial
+    if rand < pL && get(fsm.handles.VISorODR,'Value')==1
+        LR = 12;
+        
+        % choose laser power (PWM)
+        powers = str2num(get(fsm.handles.laserpoweroptions,'string'));
+        if rem(fsm.trialnum,length(powers)) == 0
+            fsm.plist = randperm(length(powers));
+        end
+        pwr = powers(fsm.plist(rem(fsm.trialnum,length(powers))+1));
+        
+        fsm.laserpower(fsm.trialnum+1) = pwr;
+        set (fsm.handles.laserpoweroptions_label,'String',['Laser powers (%):' num2str(pwr)]);
+        pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
+        
+        % set laser onset times
+        laserRange = [0 2.5];
+        Lpre = laserRange(1);
+        Lpst = laserRange(2);
+        
+        if laserRange(2)<0
+            IR3 = 17; % if laser needs to go off and then gap before stim comes on
+            Lpre = laserRange(2)-laserRange(1);
+            Gap = abs(laserRange(2));
+        else
+            IR3 = IR2;
+        end
+        
+        if laserRange(2)>=0 % if laser continues into stim
+            if Lpst>stmT % if laser goes on longer than min view time, it will stay on till end of stim
+                Lpst = stmT;
+                pwr2 = pwr;
+                L2 = L;% Make L2 = L if laser is staying on longer than min view time ie going on till end, && not an odour trial
+                if Stim~=(Odr1)&& Stim~=(Odr2) % no laser on odor
+                    L3 = L; % Make L3 also = L if in addition its not an odour trial
+                end
+            else
+                pwr2 = 0;
+                L2 = 0;
+                L3 = 0;
+            end
+        end
+        
+    else % if not a laser trial
+        LR = IR;
+        set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
+    end
+    Lon = L+Bln;
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
         
-%  spd in   spd out     lick    Tup       Timer   digiOut
-    0           0        0       1         0.01     Bln             ;...% state 0 init
-    14          1        1       1         100      Bln             ;...% state 1 wait for speed in
-    2           1        2       LR        spdT     Bln             ;...% state 2 maintain speed
-    3           3        fa      4         stmT     Stim            ;...% state 3 Stim on, refractory period
-    4           4        lok1    AR        waitT    Stim            ;...% state 4 Stim on, reward zone, wait for lick
-    5           5        5       6         rewT     Rew             ;...% state 5 Stim on, reward on
-    6           6        6       9         extraT   Stim            ;...% state 6 Stim on, extra view
-    7           7        7       6         rewT     Rew             ;...% state 7 auto reward
-    8           8        8       4         pT       Stim            ;...% state 8 punish time
-    9           9        9       99        iti      Bln             ;...% state 9 ITI
-    10          10       10      11        igT      iStim           ;...% state 10 irrel grating
-    11          11       11      3         iwT      Bln             ;...% state 11 delay after irrel grating
-    12          12       12      IR        .1       Lon             ;...% state 12 laser on pre stim
-    13          13       13      9         .01      Bln             ;...% state 13 Miss
-    14          14       14      2         .2       Bln             ;...% state 14 prevent fast transitions
+%  spd in   spd out     lick    Tup       Timer         digiOut   AnalogOut
+    0           0        0       1         0.01           Bln        0      ;...% state 0 init
+    14          1        1       1         100            Bln        0      ;...% state 1 wait for speed in
+    2           1        2       LR        spdT           Bln        0      ;...% state 2 maintain speed
+    3           3        fa      4         stmT-Lpst      Stim+L3    pwr2   ;...% state 3 Stim on, refractory period
+    4           4        lok1    AR        waitT          Stim+L3    pwr2   ;...% state 4 Stim on, reward zone, wait for lick
+    5           5        5       6         rewT           Rew+L3     pwr2   ;...% state 5 Stim on, reward on
+    6           6        6       9         extraT         Stim+L3    pwr2   ;...% state 6 Stim on, extra view
+    7           7        7       6         rewT           Rew+L3     pwr2   ;...% state 7 auto reward
+    8           8        8       4         pT             Stim+L3    pwr2   ;...% state 8 punish time
+    9           9        9       99        iti            Bln        0      ;...% state 9 ITI
+    10          10       34      30        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 10 irrel grating
+    11          11       11      3         iwT            Bln        0      ;...% state 11 delay after irrel grating
+    12          12       12      IR3       Lpre           Lon        pwr    ;...% state 12 laser on pre stim
+    13          13       13      9         .01            Bln        0      ;...% state 13 Miss 
+    14          14       14      2         .2             Bln        0      ;...% state 14 to prevent fast transitions
+    15          15       15      3         Lpst           Stim+L     pwr    ;...% state 15 stim on + laser on continuing into stim (used in case laser is on after stim but for less than min view time)
+    16          16       25      21        Lpst/5         iStim+L    pwr    ;...% state 16 istim on + laser on continuing into istim, lick here will lead to catch state  
+    17          17       17      IR        Gap            Bln        0      ;...% state 17 In case gap after laser off and stim on
+    18          18       18      99        iti            L          pwr    ;...% state 18 laser on during ITI
+    0           0        0       0         0              0          0      ;...% state 19 blank for future use
+    0           0        0       0         0              0          0      ;...% state 20 blank for future use
+
+                                                                                % (coming from laser+iStim) licks here will lead to catch states 
+    21          21       26      22        Lpst/5         iStim+L    pwr    ;...% state 21 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    22          22       27      23        Lpst/5         iStim+L    pwr    ;...% state 22 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    23          23       28      24        Lpst/5         iStim+L    pwr    ;...% state 23 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    24          24       29      10        Lpst/5         iStim+L    pwr    ;...% state 24 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    
+                                                                                % catch states
+    25          25       25      26        Lpst/5         iStim+L    pwr    ;...% state 25 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    26          26       26      27        Lpst/5         iStim+L    pwr    ;...% state 26 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    27          27       27      28        Lpst/5         iStim+L    pwr    ;...% state 27 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    28          28       28      29        Lpst/5         iStim+L    pwr    ;...% state 28 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    29          29       29      10        Lpst/5         iStim+L    pwr    ;...% state 29 istim on + laser on continuing into istim (1/5th to allow recording FA on irrels)
+    
+                                                                                % (coming from iStim) licks here will lead to catch states 
+    30          30       35      31        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 30 istim on (1/5th to allow recording FA on irrels)
+    31          31       36      32        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 31 istim on (1/5th to allow recording FA on irrels)
+    32          32       37      33        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 32 istim on (1/5th to allow recording FA on irrels)
+    33          33       38      11        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 33 istim on (1/5th to allow recording FA on irrels)
+    
+                                                                                % catch states
+    34          34       34      35        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 34 istim on (1/5th to allow recording FA on irrels)
+    35          35       35      36        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 35 istim on (1/5th to allow recording FA on irrels)
+    36          36       36      37        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 36 istim on (1/5th to allow recording FA on irrels)
+    37          37       37      38        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 37 istim on (1/5th to allow recording FA on irrels)
+    38          38       38      11        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 38 istim on (1/5th to allow recording FA on irrels)
+ 
     ];
 
 stm (:,5) = round(stm(:,5)*1000); % sec to ms
@@ -635,8 +753,12 @@ fprintf(fsm.ard,'%s\n',num2str(threshold));
 % send flag for speed monitor (may cause dropped frames, switch off for
 % real recordings)
 speedMonitorFlag = get(fsm.handles.speedMonitorFlag,'Value');
-fprintf(fsm.ard,'%s',num2str(speedMonitorFlag));
+fprintf(fsm.ard,'%s\n',num2str(speedMonitorFlag));
 
+% Send flag to indicate if it is USBcom (behaviour boxes running on NI USB6008)
+fprintf(fsm.ard,'%s',num2str(fsm.USBcomFlag));
+
+% Remember last one without \n
 
 % wait for signal that its been received
 rcvd = '';
@@ -681,8 +803,12 @@ switch rcvd
                 break
             end
             % check for stimulus change
-            stim_machine_go_nogo_switching_USBcom
-          
+            if strmatch(fsm.version,'DAQcom')
+                stim_machine_go_nogo_switching
+            elseif strmatch(fsm.version,'USBcom')
+                stim_machine_go_nogo_switching_USBcom
+            end
+
             if fsm.trialend == 1 % set by stim machine
                 trialend = 1;
                 % read trial log
@@ -698,24 +824,36 @@ switch rcvd
                 findoutcome(triallog)
                 fsm.trialend = 0;
             
-            % get speed only if SpeedMonitor checkbox is on
+                % get speed only if SpeedMonitor checkbox is on
             elseif speedMonitorFlag
-                if fsm.spdAvailable
-                    rcvd2 = fsm.spd;
-                    olddat = get(fsm.handles.spdplot,'ydata');
-                    newdat = cat(2,olddat(2:end),str2num(rcvd2));
-                    set(fsm.handles.spdplot,'ydata',newdat);
-                    set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
-                    drawnow
-                    fsm.instspeed = str2num(rcvd2);
-                    fsm.spdAvailable = 0;
-                end
-            end
+                if strmatch(fsm.version,'DAQcom')
+                    if fsm.ard.BytesAvailable
+                        rcvd2 = fscanf(fsm.ard,'%s');
+                        olddat = get(fsm.handles.spdplot,'ydata');
+                        newdat = cat(2,olddat(2:end),str2num(rcvd2));
+                        set(fsm.handles.spdplot,'ydata',newdat);
+                        set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
+                        drawnow
+                        fsm.instspeed = str2num(rcvd2);
+                    end
+                elseif strmatch(fsm.version,'USBcom')
+                    if fsm.spdAvailable
+                        rcvd2 = fsm.spd;
+                        olddat = get(fsm.handles.spdplot,'ydata');
+                        newdat = cat(2,olddat(2:end),str2num(rcvd2));
+                        set(fsm.handles.spdplot,'ydata',newdat);
+                        set(fsm.handles.ax(1),'ylim',[-10 fsm.spdylim]);
+                        drawnow
+                        fsm.instspeed = str2num(rcvd2);
+                    end
+                end %if strmatch(fsm.version,'DAQcom')
+            end %if fsm.trialend == 1 % set by stim machine
             
-        end
-end
+            
+        end % while trialend == 0
+end %switch rcvd
 
-end
+end %while keeprunning
 
 % catch
 %     save([fsm.fname '-autosave'],'fsm');
@@ -731,20 +869,22 @@ fsm.stop = 1;
 
 %Update all the preset variables that may have been changed in the GUI. 
 fsm.token = get(fsm.handles.token,'string');
+fsm.accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'string'));
 fsm.Tspeedmaintainmeanadd = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string'));
 fsm.Tstimdurationmeanadd = str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
 fsm.Tspeedmaintainmin = str2num(get(fsm.handles.Tspeedmaintainmin,'string'));
+fsm.NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'string'));
 fsm.Tstimdurationmin = str2num(get(fsm.handles.Tstimdurationmin,'string'));
 fsm.nTrialsPerBlock = str2num(get(fsm.handles.nTrialsPerBlock,'string'));
 fsm.Trewdavailable = str2num(get(fsm.handles.Trewdavailable,'string'));
 fsm.lickthreshold = str2num(get(fsm.handles.lickthreshold,'string'));
 fsm.Tirrelgrating = str2num(get(fsm.handles.Tirrelgrating,'string'));
 fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
-fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
-fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
+%fsm.temporalfreq = str2num(get(fsm.handles.temporalfreq,'string'));
+%fsm.spatialfreq = str2num(get(fsm.handles.spatialfreq,'string'));
 fsm.Tirreldelay = str2num(get(fsm.handles.Tirreldelay,'string'));
 fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
-fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
+%fsm.spdrnghigh = str2num(get(fsm.handles.spdrnghigh,'string'));
 fsm.spdrnglow = str2num(get(fsm.handles.spdrnglow,'string'));
 fsm.extrawait = str2num(get(fsm.handles.Textrawait,'string'));
 fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
@@ -758,7 +898,7 @@ fprintf(fsm.ard,'%s\n','X');
 fprintf('FSM stopped\n')
 % read trial log
 if ~isempty(fsm.triallog) % if its the first time you click stop
-    tic;while ~fsm.ard.BytesAvailable;if toc>2;break;end;end% wait for data with 2s timeout
+    tic;while ~fsm.ard.BytesAvailable;if toc>2;break;end;end % wait for data with 2s timeout
     try
         stopsignal = '';triallog = '';
         while ~strcmp(stopsignal,'d')% from 'stopped'
@@ -774,8 +914,8 @@ if ~isempty(fsm.triallog) % if its the first time you click stop
     save(fsm.fname,'fsm');
     fprintf('Logfile saved\n')
     fsm = fsm_temp; clear fsm_temp;
-    
 end
+
 % reset
 fsm.trialnum = 0;
 fsm.triallog = {};
@@ -784,9 +924,10 @@ fsm.VISorODR = [];
 fsm.blockORtbt = [];
 fsm.stimtype = [];
 fsm.odour = [];
+fsm.laserpower = [];
 fsm.outcome = [];
+fsm.FAirrelOutcome = [];
 fsm.trialend = 0;
-
 fsm.oridiff = [];
 fsm.irrelgrating = [];
 fsm.irrelodour = [];
@@ -811,7 +952,8 @@ try Screen('CloseAll');
 catch; fprintf('Did not stop PTB cleanly\n');end
 try fclose(fsm.ard); fprintf('serial port closed\n')% end communication with arduino
 catch; fprintf('Did not stop teensy cleanly, should reboot\n');end
-
+try delete(fsm.s);
+catch; fprintf('Did not stop NI DAQ cleanly\n');end
 delete(gcf);
 
 function call_change_savedir(src,eventdata)
@@ -851,115 +993,6 @@ global fsm
 fsm.spdxrng = str2num(get(fsm.handles.spdxrng,'string'));
 Xrng_speed_plot
 
-function [RT,FAT,refractoryLT,changelist] = findrectiontime(triallog)
-% orientation change 5 to 10, lick 6 to 7
-ct1 = strfind(triallog, '_5to10');
-ct2 = strfind(triallog(1:ct1(end)-1),'_');
-ct = str2num(triallog(ct2(end)+1:ct1(end)-1));
-
-lt1 = strfind(triallog, '_6to7');
-if ~isempty(lt1)
-    lt2 = strfind(triallog(1:lt1(end)-1),'_');
-    lt = str2num(triallog(lt2(end)+1:lt1(end)-1));
-    RT = (lt-ct)/1000;
-else
-    RT = NaN;
-end
-
-%False Alarm Time
-% stim on 4 to 5, lick 5 to lok2(11 or 1)
-lstring = '_5to11';
-lt1 = strfind(triallog, lstring);
-FAT = zeros(length(lt1),1);
-for f = 1:length(lt1)
-    lt2 = strfind(triallog(1:lt1(f)-1),'_');
-    lt = str2num(triallog(lt2(end)+1:lt1(f)-1));% early lick time
-    
-    st1 = strfind(triallog(1:lt1(f)-1), '_4to5');
-    st2 = strfind(triallog(1:st1(end)-1),'_');
-    st = str2num(triallog(st2(end)+1:st1(end)-1));
-    FAT(f) = (lt-st)/1000;
-end
-if isempty(FAT); FAT = NaN;end
-
-%refractory lick Time
-% stim on 4 to 5, lick 10 to lok3 (11 or 1)
-lstring = '_10to1';
-lt1 = strfind(triallog, lstring);
-refractoryLT = zeros(length(lt1),1);
-for f = 1:length(lt1)
-    lt2 = strfind(triallog(1:lt1(f)-1),'_');
-    lt = str2num(triallog(lt2(end)+1:lt1(f)-1));% early lick time
-    
-    st1 = strfind(triallog(1:lt1(f)-1), '_4to5');
-    st2 = strfind(triallog(1:st1(end)-1),'_');
-    st = str2num(triallog(st2(end)+1:st1(end)-1));
-    refractoryLT(f) = (lt-st)/1000;
-end
-if isempty(refractoryLT); refractoryLT = NaN;end
-changelist = repmat({'refractorylick'},1,length(lt1));
-
-if isnan(RT);
-    changelist = [changelist 'miss'];
-else
-    changelist = [changelist 'correct'];
-end
-
-
-function updateRTplot
-global fsm
-if isnan(fsm.RT(end)); RT = str2num(get(fsm.handles.Trewdavailable,'string')); else RT = fsm.RT(end);end
-%FAT = fsm.FAT(end);
-%if ~isfield(fsm.handles,'RTplot')% if first call
-%   fsm.handles.RTplot = plot(fsm.handles.ax(2),1,RT,'k.');
-%   set(fsm.handles.ax(2),'ylim',[0 1]);
-%else
-
-curr = find(fsm.difflist==fsm.orientationchange(fsm.trialnum));
-if ~isempty (curr)% put this bec was crashing here
-    mrkr = '.';
-    switch curr
-        case 1
-            cmrkr = 'b';
-        case 2
-            cmrkr = 'r';
-        case 3
-            cmrkr = 'k';
-        case 4
-            cmrkr = 'c';
-        otherwise
-            cmrkr = 'g';
-    end
-    
-    
-    if isnan(fsm.RT(end)); % miss
-        mrkr = '^';
-    end
-    % reaction times
-    plot(fsm.handles.ax(2),fsm.trialnum,RT,'color',cmrkr,'marker',mrkr);
-    set(fsm.handles.ax(2),'ylim',[0 str2num(get(fsm.handles.Trewdavailable,'string'))]);
-    c = jet(10);
-    % false alarms
-    if ~isnan(fsm.FAT{end})
-        mrkr = '.';
-        for f = 1:length(fsm.FAT{end})
-            coll = c(min([f 10]),:);
-            plot(fsm.handles.ax(3),fsm.trialnum,fsm.FAT{end}(f),'color',coll,'marker',mrkr);
-        end
-        
-    end
-    % refractory period licks
-    if ~isnan(fsm.refractoryLT{end})
-        mrkr = '*';
-        plot(fsm.handles.ax(3),fsm.trialnum,fsm.refractoryLT{end},'color',cmrkr,'marker',mrkr,'markersize',.8);
-    end
-    
-    if any(isnan(fsm.FAT{end})) && any(isnan(fsm.refractoryLT{end}))
-        plot(fsm.handles.ax(3),fsm.trialnum,0,'go');
-    end
-end
-
-
 function findoutcome(triallog)
 global fsm
 % hit: 4 to 5, CR 4 to 9, miss 4 to 13 or 4 to 7  , FA 4 to 8 or 3 to 8
@@ -971,21 +1004,68 @@ elseif ~isempty(strfind(triallog, '4to9')); fsm.outcome(fsm.trialnum) = 2;fprint
 else error ('here');
 end
 
+% Also find FAs to Irrel stims (FAirrel)
+% FAirrel:  from laser on period 16 to 25, 21 to 26, 22 to 27, 23 to 28, 24 to 29, or not from laser on period 10 to 34, 30 to 35, 31 to 36, 32 to 37, 33 to 38
+if ~isempty(strfind(triallog, '16to25'))||~isempty(strfind(triallog, '21to26'))||~isempty(strfind(triallog, '22to27'))||~isempty(strfind(triallog, '23to28'))...
+        ||~isempty(strfind(triallog, '24to29'))||~isempty(strfind(triallog, '10to34'))||~isempty(strfind(triallog, '30to35'))||~isempty(strfind(triallog, '31to36'))...
+        ||~isempty(strfind(triallog, '32to37'))||~isempty(strfind(triallog, '33to38'))
+    fsm.FAirrelOutcome(fsm.trialnum) = 1;fprintf('FA Irrel\n');% FA irrel
+elseif fsm.irrelgrating(fsm.trialnum) == 1 % if its an irrel grating trial & no FA
+    fsm.FAirrelOutcome(fsm.trialnum) = 0;fprintf('CR Irrel\n');% CR irrel
+else
+    fsm.FAirrelOutcome(fsm.trialnum) = NaN; % Not an irrel trial
+end
+
 % update performance plot
 % 20 trial window
-mrks = {'ro','k*'};
+mrks = {'ro','k*','b^'};
 correcttrials = (fsm.outcome == 1) + (fsm.outcome == 2);
 yplot = [];
 for i = 1:length(correcttrials)
     yplot(i) = mean(correcttrials(max([1 i-20]):i))*100;
+    yplotFAirrel(i) = nanmean(fsm.FAirrelOutcome(max([1 i-20]):i))*100;
 end
 if length(correcttrials)>=5
-    VISorODR = fsm.VISorODR(fsm.trialnum);
+    VISorODR = get(fsm.handles.VISorODR,'Value');
     plot(fsm.handles.ax(2),length(correcttrials),yplot(end),mrks{VISorODR});
+    if VISorODR == 2
+        hold on;
+        plot(fsm.handles.ax(2),length(correcttrials),yplotFAirrel(end),mrks{3});
+    end
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
+
+% Auto change the block type 
+if get(fsm.handles.autoSwitch,'Value')
+    % Check which block, vis or odr
+    VISorODR = fsm.VISorODR;
+    accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'String')); 
+    % check how many trials of this block have been performed using fsm.VISorODR
+    lastBlockChange = find(diff(VISorODR),1,'last');
+    ntrlsSinceLastBlockChange = length(VISorODR)-lastBlockChange;
+    if isempty(ntrlsSinceLastBlockChange); ntrlsSinceLastBlockChange = fsm.trialnum;end
+    NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'String'));
+    if ntrlsSinceLastBlockChange >= NtrialsAutoSwitch % if more than NtrialsAutoSwitch trials in this block
+        if VISorODR(end) == 1 % if visual block then just check accuracy on visual
+            if mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100 > accuracyThresholdAutoSwitch % accuracy threshold
+                set(fsm.handles.VISorODR,'Value',2)
+                fprintf('AUTO SWITCHED TO ODOUR BLOCK!\n');
+            end
+        end
+        if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
+            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch && (nanmean(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))*100) < 100-accuracyThresholdAutoSwitch %  accuracy threshold
+                set(fsm.handles.VISorODR,'Value',1)
+                fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
+                
+            end
+        end
+    end
+end
+
+
 % Making a plot of the performance dependent on orientation.
+% - Need to make it solely for visual block trials.
 oriPerf= cell(720,1);
 for j = 1:length(correcttrials)
 if fsm.VISorODR(j) == 1
@@ -1015,14 +1095,13 @@ fsm.punishTByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.punishT,'String'));
 fsm.pirrelByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrel,'String'));
 fsm.prewdByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.prewd,'String'));
 
-
 switch VISorODR
     case 1 % visual block
         fsm.VISorODR(fsm.trialnum+1) = 1;
         % find out if blockwise or trial by trial for different difficulties% trialnum is not yet incremented
         fsm.blockORtbt(fsm.trialnum+1) = get(fsm.handles.blockORtbt,'Value');
         blockORtbt = fsm.blockORtbt(fsm.trialnum+1);
-        
+        fsm.irrelgrating(fsm.trialnum+1) = 0;
         switch blockORtbt
             case 1 % blocks
                 if isempty(fsm.orientation) || fsm.VISorODR(fsm.trialnum)==2 || fsm.blockORtbt(fsm.trialnum)==2% first trial or change to blockwise after odr block/ vis trial by trial
@@ -1061,6 +1140,7 @@ switch VISorODR
             fsm.stimtype(fsm.trialnum+1) = 2; % non rewarded vis
             fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
         end
+        
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
         
         % select if irrelevant ODOUR presented
@@ -1078,10 +1158,10 @@ switch VISorODR
             set(fsm.handles.odour, 'String',['Odour: ']);
             fsm.odour(fsm.trialnum+1) = NaN;
         end
-        
-        
+  
     case 2 % odour block
         fsm.VISorODR(fsm.trialnum+1) = 2;
+        fsm.blockORtbt(fsm.trialnum+1) = 0;
         if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
             fsm.stimtype(fsm.trialnum+1) = 3; % rewarded odr
             fsm.odour(fsm.trialnum+1) = 1;
@@ -1096,8 +1176,10 @@ switch VISorODR
             % select irrelevant grating orientation
             rr = randi([1, length(fsm.oridifflist)]);
             fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
-            if rand < .5; fsm.orientation(fsm.trialnum+1) = 180-fsm.oridiff(fsm.trialnum+1)/2;
-            else fsm.orientation(fsm.trialnum+1) = 180+fsm.oridiff(fsm.trialnum+1)/2;end
+            fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
+            fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
+            if rand < .5; fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
+            else fsm.orientation(fsm.trialnum+1) = fsm.stim2ori; end
             
             set(fsm.handles.orientation, 'String',['Orientation: Irr ' num2str(fsm.orientation(fsm.trialnum+1))]);
         else
@@ -1118,6 +1200,47 @@ else
     fprintf(fsm.ard,'%s','W');
 end
 
+function call_setOrimapParams(src,eventdata)
+global fsm
+if isequal(fsm.handles.setOrimapParams.BackgroundColor, [0 1 1])
+    set(fsm.handles.setOrimapParams,'BackgroundColor','red')
+    set(fsm.handles.Tspeedmaintainmin,'String','3');
+    set(fsm.handles.Tspeedmaintainmeanadd,'String','0');
+    set(fsm.handles.Tstimdurationmin,'String','2');
+    set(fsm.handles.Tstimdurationmeanadd,'String','0');
+    set(fsm.handles.Trewdavailable,'String','0');
+    set(fsm.handles.oridifflist,'String','90 180 270 360 450 540 630 720');
+    set(fsm.handles.spdrnglow,'String','-5');
+    set(fsm.handles.Textrawait,'String','0');
+    set(fsm.handles.prewd,'String','1');
+    set(fsm.handles.autorewd, 'Value',0)
+    set(fsm.handles.blockORtbt, 'Value',2)
+    fsm.twomonitors = 0;
+    
+    for f = 1:2 % doing it twice prevents strange behaviour
+                %Screen('DrawTexture', fsm.winL, fsm.gabortex1, [], [560+fsm.stimPosOffset,0,2000+fsm.stimPosOffset,1440], orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastL, aspectratio, 0, 0, 0]);
+                %if fsm.twomonitors;Screen('DrawTexture', fsm.winR, fsm.gabortex2, [], [560-fsm.stimPosOffset,0,2000-fsm.stimPosOffset,1440], 180-orientation, [], [], [], [], kPsychDontDoRotation, [180-fsm.phase, freq, fsm.sc, contrastR, aspectratio, 0, 0, 0]);end
+                Screen('FillRect',fsm.winL,255/2);
+                Screen('FillRect',fsm.winR,255/2);
+                Screen('Flip', fsm.winL, [],[],[],1);
+    end
+            
+else
+    set(fsm.handles.setOrimapParams,'BackgroundColor','cyan')
+    set(fsm.handles.Tspeedmaintainmin,'String','2.8');
+    set(fsm.handles.Tspeedmaintainmeanadd,'String','0.4');
+    set(fsm.handles.Tstimdurationmin,'String','1.5');
+    set(fsm.handles.Tstimdurationmeanadd,'String','0.2');
+    set(fsm.handles.Trewdavailable,'String','1');
+    set(fsm.handles.oridifflist,'String','30 20 10');
+    set(fsm.handles.spdrnglow,'String','0');
+    set(fsm.handles.Textrawait,'String','0.5');
+    set(fsm.handles.prewd,'String','0.5');
+    set(fsm.handles.autorewd, 'Value',1)
+    set(fsm.handles.blockORtbt, 'Value',1)
+    fsm.twomonitors = 1;
+    
+end
 
 function twoMonitor_callback(src,eventdata)
 global fsm
