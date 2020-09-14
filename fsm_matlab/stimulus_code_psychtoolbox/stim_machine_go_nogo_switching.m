@@ -10,8 +10,11 @@ fsm.trialend = fsm.teensyinput(end);
 fsm.teensyinput = fsm.teensyinput(1:end-1);% remove trial end
 
 aspectratio = 1;
-
-SF = str2num(get(fsm.handles.spatialfreq,'string'));
+if isfield(fsm.handles,'spatialfreq')
+    SF = str2num(get(fsm.handles.spatialfreq,'string'));
+else
+    SF = fsm.spatialfreq;
+end
 period   = round(fsm.scrset.ppd./SF);
 cyclespersecond = fsm.temporalfreq;
 
