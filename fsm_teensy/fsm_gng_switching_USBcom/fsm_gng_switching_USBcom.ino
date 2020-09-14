@@ -180,7 +180,10 @@ void loop()
     }
 
     else if (spdok == 0 && state != stm[state][1]) { // speed out
-      triallog += millis(); triallog += "_"; triallog += state; triallog += "to"; triallog += stm[state][1]; triallog += "__";
+      //triallog += millis(); triallog += "_"; triallog += state; triallog += "to"; triallog += stm[state][1]; triallog += "__";
+      //Reset TrialLog if SpeedOut happens (prevent overflow)
+      triallog = "startTrialNumber_";
+      triallog += trialnum; triallog += "__";
       state = stm[state][1];
       stateJustChanged = 1;
     }
