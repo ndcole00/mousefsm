@@ -54,7 +54,7 @@ try
         elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-A') % Box A
             load ('C:\Users\Behaviour Only A\Documents\MATLAB\mousefsm\gamma correction\gamma correction KCL 2p\calib20190430_DellU2715Hc_bright50_cont50.mat')
         elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-B') % Box B
-            load ('C:\Users\Behaviour Only B\Documents\MATLAB\mousefsm\gamma correction\gamma correction KCL 2p\calib20190430_DellU2715Hc_bright50_cont50.mat')
+            load ('C:\Users\Behaviour-Box-B\Documents\MATLAB\mouseFSM\gamma correction\gamma correction KCL 2p\calib20190430_DellU2715Hc_bright50_cont50.mat')
         elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-C') % Box C
             load ('C:\Users\Behaviour Only One\Documents\MATLAB\mousefsm\gamma correction\gamma correction KCL 2p\calib20190430_DellU2715Hc_bright50_cont50.mat')
         elseif strcmp(getenv('computername'),'BEHAVIOUR-BOX-D') % Box D
