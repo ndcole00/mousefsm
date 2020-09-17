@@ -2,7 +2,7 @@
 function rs_2eyes_retinotopy_flicker
 
 % (15*2*10*1.3)./60
-screenNumber=3;
+screenNumber=2;
 
 clear scrset TIMING STM;
 
