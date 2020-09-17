@@ -8,7 +8,7 @@
 %          This one can present optogenetic laser (PWM) at any time wrt
 %          stim on EXCEPT starting after stim has started (to do)
 
-function fsm_newlasertiming()
+function fsm_gui_go_nogo_switching_combined()
 
 close all
 clearvars -global fsm

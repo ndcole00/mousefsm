@@ -85,6 +85,8 @@ fsm.outcome = [];
 fsm.FAirrelOutcome = [];
 fsm.NtrialsAutoSwitch = 40;
 fsm.accuracyThresholdAutoSwitch = 75;
+fsm.irrelevantWindow = 10; % number of trials over which to look for irrel FA before switching
+fsm.consecutiveCorrect = 3; % number of correct consecutive responses needed to end transition conditions
 
 fsm.TspeedMaintainMinByTrial = [];
 fsm.TspeedMaintainMeanAddbyTrial = [];
@@ -94,6 +96,7 @@ fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
 fsm.itiLaser = [];
 fsm.psL = 9; % first ISI no laser
+fsm.transitionState = 0; % 1 if in transition conditions, 0 if in normal conditions 
 %--------------------------------------------------------------------------
 % make GUI
 for i = 1 % IF statement just to enable folding of this chunk of code
@@ -375,8 +378,8 @@ fsm.handles.autorewd = uicontrol('Parent',fsm.handles.f,'Units','normalized','St
     'Value',1,'FontSize',10);
 
 % Speed monitor
-fsm.handles.speedMonitorFlag = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-    'Position', [0.48 0.75 0.13 0.04],'String','Speed Monitor',...
+fsm.handles.transition = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+    'Position', [0.48 0.75 0.13 0.04],'String','Transition states',...
     'Value',0,'FontSize',10);
 
 % Only laser
@@ -656,7 +659,7 @@ while keeprunning
     L2 = 0; L3 = 0; pwr2 = 0; Gap = 0; % Set = 0 to start
     Lpre = 0; Lpst = iti; IR3 = IR;
     % if laser trial
-    if rand < pL && get(fsm.handles.VISorODR,'Value')==1 && fsm.itiLaser == 0
+    if rand < pL && (get(fsm.handles.VISorODR,'Value')==1 || fsm.irrelgrating(fsm.trialnum+1) == 1) 
         LR = 12;
         
         % choose laser power (PWM)
@@ -671,8 +674,10 @@ while keeprunning
         pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
         
         % set laser onset times
-        laserRange = [0 2.5];
-        Lpre = laserRange(1);
+        laserRange = str2num(get(fsm.handles.laserRange,'string'));
+        assert(laserRange(1)<=0,'Laser range first number must be 0 or negative')
+        assert(laserRange(1)<laserRange(2),'Laser range first must be smaller')
+        Lpre = -laserRange(1);
         Lpst = laserRange(2);
         
         if laserRange(2)<0
@@ -698,6 +703,7 @@ while keeprunning
             end
         end
     elseif rand < pL &&  fsm.itiLaser == 1 % laser on during inter-trial-interval
+        
         
         LR = IR;
         
@@ -806,8 +812,7 @@ fprintf(fsm.ard,'%s\n',num2str(threshold));
 
 % send flag for speed monitor (may cause dropped frames, switch off for
 % real recordings)
-speedMonitorFlag = get(fsm.handles.speedMonitorFlag,'Value');
-fprintf(fsm.ard,'%s\n',num2str(speedMonitorFlag));
+speedMonitorFlag = 0;
 
 % Send flag to indicate if it is USBcom (behaviour boxes running on NI USB6008)
 fprintf(fsm.ard,'%s',num2str(fsm.USBcomFlag));
@@ -991,6 +996,7 @@ fsm.spdRngLowByTrial = [];
 fsm.punishTByTrial = [];
 fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
+fsm.transitionState = 0;
 
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
@@ -1089,6 +1095,32 @@ if length(correcttrials)>=5
 end
 set(fsm.handles.ax(2),'ylim',[0 100],'xlim',[0 length(correcttrials)]);
 
+transitionOn = get(fsm.handles.transition,'Value');
+
+% Determine whether to leave transition state
+if transitionOn
+    if fsm.transitionState(fsm.trialnum) == 1 % if in transition state
+        if fsm.VISorODR(end) == 1 % if in visual block
+            if all(fsm.outcome(end-fsm.consecutiveCorrect+1:end)==1) && all(fsm.transitionState(end-fsm.consecutiveCorrect+1:end))
+                fsm.transitionState(fsm.trialnum+1) = 0;
+                fprintf('END OF TRANSITION STATE\n');
+            else
+                fsm.transitionState(fsm.trialnum+1) = 1;
+            end
+        else % if in odour block
+            if all(fsm.FAirrelOutcome(end-fsm.consecutiveCorrect+1:end)==0) && all(fsm.transitionState(end-fsm.consecutiveCorrect+1:end))
+                fsm.transitionState(fsm.trialnum+1) = 0;
+                fprintf('END OF TRANSITION STATE\n');
+            else
+                fsm.transitionState(fsm.trialnum+1) = 1;
+            end
+        end
+    else
+        fsm.transitionState(fsm.trialnum+1) = 0;
+    end
+else
+    fsm.transitionState(fsm.trialnum+1) = 0;
+end
 
 % Auto change the block type 
 if get(fsm.handles.autoSwitch,'Value')
@@ -1102,19 +1134,20 @@ if get(fsm.handles.autoSwitch,'Value')
     NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'String'));
     if ntrlsSinceLastBlockChange >= NtrialsAutoSwitch % if more than NtrialsAutoSwitch trials in this block
         if VISorODR(end) == 1 % if visual block then just check accuracy on visual
-            if mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100 > accuracyThresholdAutoSwitch % accuracy threshold
+            if mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100 > accuracyThresholdAutoSwitch ... % if visual performance is above performance threshold
+                   && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end)) % and none of the trials in the window were transition trials
                 set(fsm.handles.VISorODR,'Value',2)
                 fprintf('AUTO SWITCHED TO ODOUR BLOCK!\n');
+                if transitionOn; fsm.transitionState(fsm.trialnum+1) = 1; end
             end
         end
         if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
-            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch... %  accuracy threshold 
-                    && (all(isnan(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end)))...
-                    || (nanmean(fsm.FAirrelOutcome(end-21:end))*100) == 0) % if last 10 irrel gratings were ignored
+            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch ... % if odour performance is above performance threshold
+                   && ~any(fsm.FAirrelOutcome(end-fsm.irrelevantWindow+1:end)==1) ... % and no irrelevant FAs in set window of trials
+                   && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end)) % and none of the trials in the window were transition trials
                 set(fsm.handles.VISorODR,'Value',1)
                 fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
-
-                
+                if transitionOn; fsm.transitionState(fsm.trialnum+1) = 1; end
             end
         end
     end
@@ -1190,7 +1223,7 @@ switch VISorODR
         fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
         
         % choose rewarded or non rewarded stim
-        if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
+        if rand < str2num(get(fsm.handles.prewd,'String')) || fsm.transitionState(fsm.trialnum+1)==1 % if rewarded trial / transition trial
             fsm.stimtype(fsm.trialnum+1) = 1; % rewarded vis
             fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
         else
@@ -1227,15 +1260,20 @@ switch VISorODR
             fsm.odour(fsm.trialnum+1) = 2;
         end
         set(fsm.handles.odour, 'String',['Odour: ' num2str(fsm.odour(fsm.trialnum+1))]);
+        if fsm.transitionState(fsm.trialnum+1) == 1 % in transition state every odour trial has irrel grating
+            pIrrel = 1;
+        else
+            pIrrel = get(fsm.handles.pirrel,'String'); % otherwise use assigned P irrel
+        end
         % select if irrelevant grating displayed
-        if rand < str2num(get(fsm.handles.pirrel,'String')) %
+        if rand < pIrrel
             fsm.irrelgrating(fsm.trialnum+1) = 1;
             % select irrelevant grating orientation
             rr = randi([1, length(fsm.oridifflist)]);
             fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
             fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
             fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
-            if rand < .5; fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
+            if rand < .5 || fsm.transitionState(fsm.trialnum+1) == 1; fsm.orientation(fsm.trialnum+1) = fsm.stim1ori; % in transition state all irrels are Vis1
             else fsm.orientation(fsm.trialnum+1) = fsm.stim2ori; end
             
             set(fsm.handles.orientation, 'String',['Orientation: Irr ' num2str(fsm.orientation(fsm.trialnum+1))]);
