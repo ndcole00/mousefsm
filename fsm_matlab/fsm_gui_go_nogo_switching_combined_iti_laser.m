@@ -8,7 +8,7 @@
 %          This one can present optogenetic laser (PWM) at any time wrt
 %          stim on EXCEPT starting after stim has started (to do)
 
-function fsm_newlasertiming()
+function fsm_gui_go_nogo_switching_combined_iti_laser()
 
 close all
 clearvars -global fsm
@@ -770,10 +770,11 @@ while keeprunning
     37          37       37      38        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 37 istim on (1/5th to allow recording FA on irrels)
     38          38       38      11        (igT-Lpst)/5   iStim+L2   pwr2   ;...% state 38 istim on (1/5th to allow recording FA on irrels)
     
-    39          39       39      99         iti           L          pwr    ;...% state 39 ITI with laser on
-    42          40       40      41         100           L          pwr    ;...% state 40 wait for speed in, laser on
-    41          40       41      LR         spdT          L          pwr    ;...% state 41 maintain speed, laser on
-    42          42       42      41         .2            L          pwr    ;...% state 42,to prevent fast transitions, laser on (maybe unnecessary)
+    39          39       39      99         iti           Lon        pwr    ;...% state 39 ITI with laser on
+    42          40       40      41         100           Lon        pwr    ;...% state 40 wait for speed in, laser on
+    41          40       41      43         spdT          Lon        pwr    ;...% state 41 maintain speed, laser on
+    42          42       42      41         .2            Lon        pwr    ;...% state 42,to prevent fast transitions, laser on
+    43          43       43      LR         spdT-1.5      Bln        0      ;...% state 43, gap between laser off and pre-stim
     
     ];
 
@@ -1107,7 +1108,9 @@ if get(fsm.handles.autoSwitch,'Value')
             end
         end
         if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
-            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch && (all(isnan(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))) || (nanmean(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end))*100) < 100-accuracyThresholdAutoSwitch) %  accuracy threshold
+            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch... %  accuracy threshold 
+                    && (all(isnan(fsm.FAirrelOutcome(end-NtrialsAutoSwitch+1:end)))...
+                    || (nanmean(fsm.FAirrelOutcome(end-21:end))*100) == 0) % if last 10 irrel gratings were ignored
                 set(fsm.handles.VISorODR,'Value',1)
                 fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
 
