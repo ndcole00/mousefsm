@@ -29,9 +29,9 @@ fsm.TeensyCode = 'fsm_gng_switching_combined.ino'; % This works for both USB and
 fsm.PCname = getenv('computername');
 
 % Initialise
-try fsm.comport = num2str(GetComPort ('USB Serial Device'));
-catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
-
+% try fsm.comport = num2str(GetComPort ('USB Serial Device'));
+% catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
+fsm.comport = helper.fetchScreensAndComport('com');
 
 fsm.token = 'M99_B1';
 fsm.fname = '';
