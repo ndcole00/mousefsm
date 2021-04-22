@@ -759,8 +759,7 @@ fprintf(fsm.ard,'%s\n',num2str(threshold));
 % send flag for speed monitor (may cause dropped frames, switch off for
 % real recordings)
 speedMonitorFlag = 0;
-% speedMonitorFlag = get(fsm.handles.speedMonitorFlag,'Value');
-% fprintf(fsm.ard,'%s\n',num2str(speedMonitorFlag));
+fprintf(fsm.ard,'%s\n',num2str(speedMonitorFlag));
 
 % Send flag to indicate if it is USBcom (behaviour boxes running on NI USB6008)
 fprintf(fsm.ard,'%s',num2str(fsm.USBcomFlag));

@@ -15,11 +15,11 @@ if strcmp(hostName, 'DESKTOP-PPJDC4N') %Two-photon
     AI.fname = sprintf('%s\\%s__%s_%s_%s_AI_001.bin', selectedDir, datestr(now, 'yyyymmdd_HHMMSS'), mouseName, block, taskTag);
     AI.start
 elseif strcmp(hostName, 'DESKTOP-B3BBA2R') %Widefield
-    AI = sitools.ai_recorder('Z:\Code\Utils\widefieldAIsettings2.mat');
+    AI = sitools.ai_recorder('W:\Code\Utils\widefieldAIsettings2.mat');
     AI.fname = sprintf('%s\\%s__%s_%s_%s_AI_001.bin', selectedDir, datestr(now, 'yyyymmdd_HHMMSS'), mouseName, block, taskTag);
     AI.start    
 elseif contains(hostName, 'BEHAVIOUR-BOX') %All behaviour boxes
-    AI = sitools.ai_recorder('Z:\Code\prefsBehaviourBoxes.mat');
+    AI = sitools.ai_recorder('W:\Code\prefsBehaviourBoxes.mat');
     AI.fname = sprintf('%s\\%s__%s_%s_%s_AI_001.bin', selectedDir, datestr(now, 'yyyymmdd_HHMMSS'), mouseName, block, taskTag);
     AI.connectAndStart
 end
