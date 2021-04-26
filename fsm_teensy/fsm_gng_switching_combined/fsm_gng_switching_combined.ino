@@ -17,6 +17,9 @@ int digioutPins[] = {
 }; // 2 is rewd valve, least significant bit
 const int Npins = 11;
 int analogoutPin = 23; // for PWM of laser power
+int laserPinIndex = 7; // to ramp it down
+int laserIsOn = 0;
+int analogPower = 0;
 int runfsm = 0;
 int spdRngHi;
 int spdRngLo;
@@ -166,14 +169,38 @@ void loop()
       if (USBcomFlag == 1) {
         Serial.println(dig);
       }
-      for (int i = 0; i < Npins; i++) {
+      for (int i = 0; i < Npins; i++) {        
         int val = bitRead(dig, i);
+
+        // Ramping off laser
+        int rampDuration = 200; //ms
+        
+        if i==laserPinIndex && laserIsOn == 0 && val==1 { // if laser is being turned on from off
+          laserIsOn == 1;
+        }
+
+        if i==laserPinIndex && laserIsOn == 1 && val==0 { // if laser is being turned off from on, RAMP
+          laserIsOn == 0;
+          
+          rampStartT = millis();
+          rampIter = 0;
+          while rampIter<=rampDuration {
+            rampCurrT = millis();
+            if rampCurrT-rampStartT >= rampIter {
+              analogRamped = analogPower (1-rampIter/rampDuration)
+              rampIter++;
+              analogWrite(analogoutPin, analogRamped);
+            }
+          }
+        }
+        
         digitalWrite(digioutPins[i], val);
       }
 
       // send analog out for PWM of laser
       if (nCols == 7) {
         analogWrite(analogoutPin, stm[state][6]);
+        analogPower = stm[state][6];
       }
 
       // send the new state to matlab
