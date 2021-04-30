@@ -113,6 +113,7 @@ void loop()
   unsigned long CurrentTime = millis();
   unsigned long spdPrevMillis = millis();
   unsigned long spdCurrMillis = millis();
+  
   long oldPosition = myEnc.read();
   long newPosition;
   if (runfsm == 1) {
@@ -163,6 +164,7 @@ void loop()
     }
 
     if (stateJustChanged == 1) {
+       
       // send digiout
       // least significant bit is pin2, reward
       int dig = stm[state][5];
@@ -171,24 +173,32 @@ void loop()
       }
       for (int i = 0; i < Npins; i++) {        
         int val = bitRead(dig, i);
+       
 
         // Ramping off laser
         int rampDuration = 200; //ms
         
-        if i==laserPinIndex && laserIsOn == 0 && val==1 { // if laser is being turned on from off
-          laserIsOn == 1;
+        if ((i==laserPinIndex) && (laserIsOn == 0) && (val==1)) { // if laser is being turned on from off
+          laserIsOn = 1;
         }
 
-        if i==laserPinIndex && laserIsOn == 1 && val==0 { // if laser is being turned off from on, RAMP
-          laserIsOn == 0;
+        if ((i==laserPinIndex) && (laserIsOn == 1) && (val==0)) { // if laser is being turned off from on, RAMP
+          laserIsOn = 0;
           
-          rampStartT = millis();
-          rampIter = 0;
-          while rampIter<=rampDuration {
+          
+          unsigned long rampStartT = millis();
+          unsigned long rampStartT2 = millis();
+          unsigned long rampCurrT = millis();
+
+          int analogRamped;
+          rampCurrT = millis();
+          while ((rampCurrT-rampStartT)<=rampDuration) {
             rampCurrT = millis();
-            if rampCurrT-rampStartT >= rampIter {
-              analogRamped = analogPower (1-rampIter/rampDuration)
-              rampIter++;
+           
+            if ((rampCurrT-rampStartT2) >= 1) {// defines step resolution
+              rampStartT2 = rampCurrT;
+              //analogRamped = round(analogPower*(1-(rampCurrT-rampStartT)/rampDuration));
+              analogRamped = (float)analogPower*(1-((float)rampCurrT-(float)rampStartT)/(float)rampDuration);
               analogWrite(analogoutPin, analogRamped);
             }
           }
