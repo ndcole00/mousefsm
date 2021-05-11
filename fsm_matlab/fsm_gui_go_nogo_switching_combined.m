@@ -70,6 +70,7 @@ fsm.vbl = 0;
 fsm.pirrel = 0;
 fsm.Tirrelgrating = 1.8;
 fsm.Tirreldelay = 1.8;
+fsm.Tirreldelaymeanadd = 0.2;
 fsm.odour = [];
 fsm.plaser = 0;
 fsm.oridifflist = [30 20 10];
@@ -379,7 +380,19 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     fsm.handles.nIrrelTrials = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
         'Position', [0.82 0.85 0.05 0.04],...
         'String',fsm.nIrrelTrials,'FontSize',10,...
-        'TooltipString',['For auto-switching blocks:',char(10),'Trial window over which last irrelevant trials must have been corrected rejected to trigger auto-switch']);
+        'TooltipString',['For auto-switching blocks:',char(10),'Number of previous trials in which all previous irrelevant grating must have been correctly rejected to trigger auto-switch']);
+    
+    % Number of correctly rejected irrelevant gratings required to
+    % auto-switch
+    fsm.handles.Tirreldelaymeanadd_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.64 0.80 0.17 0.04],...
+        'String','T irrel delay mean added','FontSize',10);
+    fsm.handles.Tirreldelaymeanadd = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+        'Position', [0.82 0.80 0.05 0.04],...
+        'String',fsm.Tirreldelaymeanadd,'FontSize',10,...
+        'TooltipString','Mean added random jitter to delay between irrel grating and odour');
+    
+    
     
     %%% Indicators %%%
     
@@ -543,7 +556,7 @@ while keeprunning
     fsm.stimPosOffset = str2num(get(fsm.handles.stimPosOffset,'string'));
     
     igT  = str2num(get(fsm.handles.Tirrelgrating,'string'));
-    iwT  = str2num(get(fsm.handles.Tirreldelay,'string')) + exprnd(.2);
+    iwT  = str2num(get(fsm.handles.Tirreldelay,'string')) + exprnd(str2num(get(fsm.handles.Tirreldelaymeanadd,'string')));
     spdT = str2num(get(fsm.handles.Tspeedmaintainmin,'string')) + exprnd(str2num(get(fsm.handles.Tspeedmaintainmeanadd,'string')));
     stmT = str2num(get(fsm.handles.Tstimdurationmin,'string')) + rand*str2num(get(fsm.handles.Tstimdurationmeanadd,'string'));
     fsm.stmT = stmT;
@@ -1034,8 +1047,11 @@ if ~isempty(fsm.triallog) % if its the first time you click stop
     fsm = rmfield(fsm,'handles');% to avoid saving figure
     save(fsm.fname,'fsm');
     fprintf('Logfile saved\n')
-    delete(fsm.tempFName);
     fsm = fsm_temp; clear fsm_temp;
+end
+% delete the temporary fsm file
+if isfile(fsm.tempFName)
+delete(fsm.tempFName);
 end
 
 % reset
@@ -1467,6 +1483,9 @@ if button_state == get(hObject,'Max') % create speed monitor axes
     set(fsm.handles.consecutiveCorrect,'visible','off');
     set(fsm.handles.nIrrelTrials_label,'visible','off');
     set(fsm.handles.nIrrelTrials,'visible','off');
+    set(fsm.handles.Tirreldelaymeanadd_label,'visible','off');
+    set(fsm.handles.Tirreldelaymeanadd,'visible','off');
+    
     
 elseif button_state == get(hObject,'Min') % hide speed monitor axes
     set(fsm.handles.ax(1),'visible','off');
@@ -1479,6 +1498,8 @@ elseif button_state == get(hObject,'Min') % hide speed monitor axes
     set(fsm.handles.consecutiveCorrect,'visible','on');
     set(fsm.handles.nIrrelTrials_label,'visible','on');
     set(fsm.handles.nIrrelTrials,'visible','on');
+    set(fsm.handles.Tirreldelaymeanadd_label,'visible','on');
+    set(fsm.handles.Tirreldelaymeanadd,'visible','on');
     try
         set(fsm.handles.spdplot,'visible','off');
         set(fsm.handles.spdRngHiLine,'visible','off');
