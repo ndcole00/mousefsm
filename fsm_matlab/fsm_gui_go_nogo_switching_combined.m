@@ -17,7 +17,7 @@ global fsm
 % Decide which version to run based on which PC it is (USBcom vs non USBcom)
 if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
     fsm.version = 'DAQcom';
-    fsm.USBcomFlag = 0;
+    fsm.USBcomFlag = 0; 
     fsm.savedir = 'C:\Data\FSM_log\';
 else % behaviour boxes
     fsm.version = 'USBcom';
@@ -70,7 +70,7 @@ fsm.vbl = 0;
 fsm.pirrel = 0;
 fsm.Tirrelgrating = 1.8;
 fsm.Tirreldelay = 1.8;
-fsm.Tirreldelaymeanadd = 0.2;
+fsm.Tirreldelaymeanadd = 0;
 fsm.odour = [];
 fsm.plaser = 0;
 fsm.oridifflist = [30 20 10];
@@ -499,6 +499,7 @@ for i = 1 % IF statement just to enable folding of this chunk of code
 end
 
 % start serial port
+fsm.comport = 'COM3';
 fsm.ard=serial(fsm.comport,'BaudRate',9600); % create serial communication object on port COM7
 set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
@@ -723,7 +724,7 @@ while keeprunning
     IR3 = IR; % sequence of states dependent on laser timing
     
     % if laser trial
-    if rand < pL && get(fsm.handles.VISorODR,'Value')==1 && ~fsm.itiLaser
+    if rand < pL && ~fsm.itiLaser
         LR = 12;
         
         % choose laser power (PWM)
@@ -738,8 +739,10 @@ while keeprunning
         pwr = round(pwr*4095/100); % 0-4095, 12 bit resolution for analog out
         
         % set laser onset times
-        laserRange = [0 2.5];
-        Lpre = laserRange(1);
+        laserRange = str2num(get(fsm.handles.laserRange,'string'));
+        assert(laserRange(1)<=0,'Laser range first number must be 0 or negative')
+        assert(laserRange(1)<laserRange(2),'Laser range first must be smaller')
+        Lpre = -laserRange(1);
         Lpst = laserRange(2);
         
         if laserRange(2)<0
@@ -753,11 +756,19 @@ while keeprunning
         if laserRange(2)>=0 % if laser continues into stim
             if Lpst>stmT % if laser goes on longer than min view time, it will stay on till end of stim
                 Lpst = stmT;
-                pwrRel = pwr;
                 pwrIrr = pwr;
                 irrL = L;% Make irrL = L if laser is staying on longer than min view time ie going on till end, && not an odour trial
                 if Stim~=(Odr1)&& Stim~=(Odr2) % no laser on odor
                     relL = L; % Make relL also = L if in addition its not an odour trial
+                    pwrRel = pwr;
+                elseif IR == 3 % if an odour trial without irrel grating (should be no laser)
+                    pwrIrr = 0;
+                    irrL = 0;
+                    pwr = 0;
+                    Lpst = 0;
+                    Lpre = 0;
+                    relL = 0;
+                    pwrRel = 0;
                 end
             else
                 pwrRel = 0;
@@ -799,21 +810,21 @@ while keeprunning
     Lon = L+Bln;
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
         
-    %  spd in   spd out     lick    Tup       Timer           digiOut    AnalogOut
-    0           0        0       1         0.01           Bln+itiL   pwrITI   ;...% state 0 init
-    14          1        1       1         100            Bln+itiL   pwrITI   ;...% state 1 wait for speed in
-    2           1        2       LR        spdT           Bln+itiL   pwrITI   ;...% state 2 maintain speed
-    3           3        fa      4         stmT-Lpst      Stim+relL  pwrRel ;...% state 3 Stim on, refractory period
-    4           4        lok1    AR        waitT          Stim+relL  pwrRel ;...% state 4 Stim on, reward zone, wait for lick
-    5           5        5       6         rewT           Rew+relL     pwrRel  ;...% state 5 Stim on, reward on
-    6           6        6       9       extraT           Stim+relL    pwrRel  ;...% state 6 Stim on, extra view
-    7           7        7       6         rewT           Rew+relL     pwrRel  ;...% state 7 auto reward
-    8           8        8       4         pT             Stim+relL    pwrRel  ;...% state 8 punish time
+    % spd in      spd out  lick    Tup       Timer          digiOut    AnalogOut
+    0           0        0       1         0.01           Bln+itiL   pwrITI  ;...% state 0 init
+    14          1        1       1         100            Bln+itiL   pwrITI  ;...% state 1 wait for speed in
+    2           1        2       LR        spdT-Lpre      Bln+itiL   pwrITI  ;...% state 2 maintain speed
+    3           3        fa      4         stmT-Lpst      Stim+relL  pwrRel  ;...% state 3 Stim on, refractory period
+    4           4        lok1    AR        waitT          Stim+relL  pwrRel  ;...% state 4 Stim on, reward zone, wait for lick
+    5           5        5       6         rewT           Rew+relL   pwrRel  ;...% state 5 Stim on, reward on
+    6           6        6       9       extraT           Stim+relL  pwrRel  ;...% state 6 Stim on, extra view
+    7           7        7       6         rewT           Rew+relL   pwrRel  ;...% state 7 auto reward
+    8           8        8       4         pT             Stim+relL  pwrRel  ;...% state 8 punish time
     9           9        9       99        iti            Bln+itiL   pwrITI  ;...% state 9 ITI
-    10          10       34      30        (igT-Lpst)/5   iStim+irrL   pwrIrr  ;...% state 10 irrel grating
+    10          10       34      30        (igT-Lpst)/5   iStim+irrL pwrIrr  ;...% state 10 irrel grating
     11          11       11      3         iwT            Bln+itiL   pwrITI  ;...% state 11 delay after irrel grating
     12          12       12      IR3       Lpre           Lon        pwr     ;...% state 12 laser on pre stim
-    13          13       13      9         .01            Bln        0       ;...% state 13 Miss
+    13          13       13      9         .01            Bln+relL   pwr     ;...% state 13 Miss
     14          14       14      2         .2             Bln+itiL   pwrITI  ;...% state 14 to prevent fast transitions
     15          15       15      3         Lpst           Stim+L     pwr     ;...% state 15 stim on + laser on continuing into stim (used in case laser is on after stim but for less than min view time)
     16          16       25      21        Lpst/5         iStim+L    pwr     ;...% state 16 istim on + laser on continuing into istim, lick here will lead to catch state
@@ -1314,12 +1325,15 @@ switch VISorODR
                 fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
         end
         
+        if fsm.transitionState(fsm.trialnum+1) == 1
+            fsm.oridiff(fsm.trialnum+1) = max(fsm.oridifflist);
+        end
         
         fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
         fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
         
         % choose rewarded or non rewarded stim
-        if rand < str2num(get(fsm.handles.prewd,'String')) % if rewarded trial
+        if rand < str2num(get(fsm.handles.prewd,'String')) || fsm.transitionState(fsm.trialnum+1) == 1 % if rewarded trial
             fsm.stimtype(fsm.trialnum+1) = 1; % rewarded vis
             fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
         else
@@ -1357,15 +1371,24 @@ switch VISorODR
         end
         set(fsm.handles.odour, 'String',['Odour: ' num2str(fsm.odour(fsm.trialnum+1))]);
         % select if irrelevant grating displayed
-        if rand < str2num(get(fsm.handles.pirrel,'String')) %
+        if rand < str2num(get(fsm.handles.pirrel,'String')) || fsm.transitionState(fsm.trialnum+1) == 1 %
             fsm.irrelgrating(fsm.trialnum+1) = 1;
+            
             % select irrelevant grating orientation
-            rr = randi([1, length(fsm.oridifflist)]);
-            fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
+            if fsm.transitionState(fsm.trialnum+1) == 1
+                fsm.oridiff(fsm.trialnum+1) = max(fsm.oridifflist);
+            else
+                rr = randi([1, length(fsm.oridifflist)]);
+                fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
+            end
+            
             fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
             fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
-            if rand < .5; fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
-            else fsm.orientation(fsm.trialnum+1) = fsm.stim2ori; end
+            if rand < .5 || fsm.transitionState(fsm.trialnum+1)
+                fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
+            else
+                fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
+            end
             
             set(fsm.handles.orientation, 'String',['Orientation: Irr ' num2str(fsm.orientation(fsm.trialnum+1))]);
         else

@@ -29,9 +29,12 @@ try
     %screenidR = allscreens(2);
     % new machine
     fsm.twomonitors = 1;
-    screenidL = 2;
-    if fsm.twomonitors; screenidR = 3; end
+    screenIDs = helper.fetchScreensAndComport('screens');
     
+    screenidL = screenIDs(1);
+%     screenidL = 2;
+    if fsm.twomonitors; screenidR = screenIDs(2); end
+%     if fsm.twomonitors; screenidR = 2; end
     % Setup imagingMode and window position/size depending on mode:
     rect = [];
     imagingMode = 0;
