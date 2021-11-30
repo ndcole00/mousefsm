@@ -718,8 +718,10 @@ while keeprunning
     itiL = 0; % laser during inter-trial-interval
     
     Gap = 0; % gap between end of laser and end of stim
-    Lpre = 0; % start time of laser, relative to vis stim onset
-    Lpst = iti; % end time of laser, relative to vis stim onset
+    
+    % Unsure why this was specified as iti
+%     Lpre = 0; % start time of laser, relative to vis stim onset
+%     Lpst = iti; % end time of laser, relative to vis stim onset
     
     IR3 = IR; % sequence of states dependent on laser timing
     
@@ -806,6 +808,8 @@ while keeprunning
     else % if not a laser trial
         LR = IR;
         set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
+        Lpst = 0;
+        Lpre = 0;
     end
     Lon = L+Bln;
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
