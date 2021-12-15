@@ -17,7 +17,7 @@ global fsm
 % Decide which version to run based on which PC it is (USBcom vs non USBcom)
 if strcmp(getenv('computername'),'DESKTOP-QRQHH0K') % 2p rig1
     fsm.version = 'DAQcom';
-    fsm.USBcomFlag = 0; 
+    fsm.USBcomFlag = 0;
     fsm.savedir = 'C:\Data\FSM_log\';
 else % behaviour boxes
     fsm.version = 'USBcom';
@@ -98,13 +98,16 @@ fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
 fsm.itiLaser = [];
 fsm.transitionState = 0; % 1 if in transition conditions, 0 if in normal conditions
+fsm.maxBlockSize = 0; % 0 = no maximum block size
+fsm.laserOffsetOn = 0; % whether to set laser to off in first visual trials following auto-switch
+fsm.constantLaser = 0; % whether to have laser signal on constantly, if ITI is checked
 %--------------------------------------------------------------------------
 % make GUI
 for i = 1 % IF statement just to enable folding of this chunk of code
     fsm.handles.f = figure('Units','normalized','Position',[0.05 0.4 0.5 0.5],...
         'Toolbar','figure');
     set(fsm.handles.f,'CloseRequestFcn',@my_closefcn);
-       
+    
     % plot image
     
     fsm.handles.ax(2)=axes('Parent',fsm.handles.f,'Units','normalized','Position',[0.65 0.05 0.33 0.4]);
@@ -305,7 +308,7 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     fsm.handles.lickthreshold = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
         'Position', [0.53 0.6 0.08 0.04],...
         'String',fsm.lickthreshold,'FontSize',10,...
-        'TooltipString','Minimum threshold for lick detector trace amplitude to register a lick');
+        'TooltipString','Minimum threshold for lick detector amplitude to register a lick');
     %
     % Extra wait time
     uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -382,8 +385,7 @@ for i = 1 % IF statement just to enable folding of this chunk of code
         'String',fsm.nIrrelTrials,'FontSize',10,...
         'TooltipString',['For auto-switching blocks:',char(10),'Number of previous trials in which all previous irrelevant grating must have been correctly rejected to trigger auto-switch']);
     
-    % Number of correctly rejected irrelevant gratings required to
-    % auto-switch
+    % Mean added jitter to gap between irrel grating and odour
     fsm.handles.Tirreldelaymeanadd_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
         'Position', [0.64 0.80 0.17 0.04],...
         'String','T irrel delay mean added','FontSize',10);
@@ -392,6 +394,15 @@ for i = 1 % IF statement just to enable folding of this chunk of code
         'String',fsm.Tirreldelaymeanadd,'FontSize',10,...
         'TooltipString','Mean added random jitter to delay between irrel grating and odour');
     
+    % Maximum block size before auto-switching (only applies during
+    % auto-switch)
+    fsm.handles.maxBlockSize_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.64 0.75 0.17 0.04],...
+        'String','Maximum block size','FontSize',10);
+    fsm.handles.maxBlockSize = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+        'Position', [0.82 0.75 0.05 0.04],...
+        'String',fsm.maxBlockSize,'FontSize',10,...
+        'TooltipString',['If auto-switch is enabled, maximum size of block before block switch occurs automatically',char(10),'0 = no maximum block size']);
     
     
     %%% Indicators %%%
@@ -456,8 +467,24 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     
     % Laser on during inter-trial-interval
     fsm.handles.itiLaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
-        'Position', [0.89 0.9 0.12 0.04],'String','ITI laser','TooltipString','Laser on only in inter-trial-interval', ...
+        'Position', [0.88 0.9 0.12 0.04],'String','ITI laser','TooltipString','Laser on only in inter-trial-interval', ...
         'Value',0,'FontSize',10);
+    
+    % Constant laser
+    fsm.handles.constantLaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','checkbox',...
+        'Position', [0.88 0.85 0.12 0.04],'String','Constant laser','TooltipString','Laser on throughout trial', ...
+        'Value',0,'FontSize',10);
+    
+    %%%% Drop-down menus %%%%
+    
+    % Laser offsets relative to switch
+    
+    fsm.handles.laserOffset_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.64 0.685 0.10 0.04],...
+        'String','Laser offset','FontSize',10);
+    fsm.handles.laserOffset = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+        'Position', [0.75 0.65 0.12 0.08],'String',{'Off','0','1','3'},'TooltipString',['Number of trials for which to delay laser onset, following auto-switch to visual',char(10),'0 = wait for one trial, 1 = wait for one hit, 3 = wait for 3 consecutive hits'], ...
+        'Value',1,'FontSize',10);
     
     
     %%%%% Buttons%%%%
@@ -499,7 +526,6 @@ for i = 1 % IF statement just to enable folding of this chunk of code
 end
 
 % start serial port
-fsm.comport = 'COM3';
 fsm.ard=serial(fsm.comport,'BaudRate',9600); % create serial communication object on port COM7
 set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
@@ -567,6 +593,7 @@ while keeprunning
     iti   = str2num(get(fsm.handles.Titi,'string'));
     extraT= str2num(get(fsm.handles.Textrawait,'string'));
     fsm.itiLaser = get(fsm.handles.itiLaser ,'Value'); % whether laser timing is confined to ITI window
+    fsm.constantLaser = get(fsm.handles.constantLaser ,'Value'); % laser on throughout trial
     %     mcvT  = str2num(get(fsm.handles.Tminorientationview,'string'));
     pT    = str2num(get(fsm.handles.punishT,'string'));
     fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
@@ -718,15 +745,23 @@ while keeprunning
     itiL = 0; % laser during inter-trial-interval
     
     Gap = 0; % gap between end of laser and end of stim
-    
-    % Unsure why this was specified as iti
-%     Lpre = 0; % start time of laser, relative to vis stim onset
-%     Lpst = iti; % end time of laser, relative to vis stim onset
+    Lpre = 0; % start time of laser, relative to vis stim onset
+    Lpst = iti; % end time of laser, relative to vis stim onset
     
     IR3 = IR; % sequence of states dependent on laser timing
     
+    if fsm.laserOffsetOn && ~fsm.constantLaser % if laser is offset at start of visual blocks
+        pL = 0;
+    elseif fsm.laserOffsetOn && fsm.constantLaser % if using constant laser suppression, want signal to = 0 during offset trials
+        pL = 1;
+    end
+    % if using laser offset and constant suppression signal for 40Hz laser
+    if get(fsm.handles.laserOffset','value') > 1 && ~fsm.laserOffsetOn
+        pL = 0;
+    end
+    
     % if laser trial
-    if rand < pL && ~fsm.itiLaser
+    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser
         LR = 12;
         
         % choose laser power (PWM)
@@ -779,7 +814,7 @@ while keeprunning
                 relL = 0;
             end
         end
-    elseif rand < pL &&  fsm.itiLaser % laser on during inter-trial-interval
+    elseif rand < pL &&  (fsm.itiLaser || fsm.constantLaser) % laser on during inter-trial-interval / whole trial
         
         LR = IR;
         
@@ -805,11 +840,19 @@ while keeprunning
             Lpst = 0;
         end
         
+        if fsm.constantLaser % have laser on throughout stims and ITI
+            pwrIrr = pwr;
+            irrL = L;
+            relL = L;
+            pwrRel = pwr;
+            Lpre = .5;
+            Lpst = stmT;
+        end
     else % if not a laser trial
         LR = IR;
         set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
-        Lpst = 0;
         Lpre = 0;
+        Lpst = 0;
     end
     Lon = L+Bln;
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
@@ -1066,7 +1109,7 @@ if ~isempty(fsm.triallog) % if its the first time you click stop
 end
 % delete the temporary fsm file
 if isfile(fsm.tempFName)
-delete(fsm.tempFName);
+    delete(fsm.tempFName);
 end
 
 % reset
@@ -1090,7 +1133,11 @@ fsm.spdRngLowByTrial = [];
 fsm.punishTByTrial = [];
 fsm.pirrelByTrial = [];
 fsm.prewdByTrial = [];
+fsm.lickThreshByTrial = [];
 fsm.transitionState = 0;
+fsm.laserOffsetOn = 0;
+
+
 
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
@@ -1232,33 +1279,53 @@ else
     fsm.transitionState(fsm.trialnum+1) = 0;
 end
 
-% Auto change the block type 
+maxBlockSize = str2num(get(fsm.handles.maxBlockSize,'String'));
+forceSwitch = 0;
+
+% Auto change the block type
 if get(fsm.handles.autoSwitch,'Value')
     % Check which block, vis or odr
     VISorODR = fsm.VISorODR;
     nIrrelTrials = str2num(get(fsm.handles.nIrrelTrials,'String'));
-    accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'String')); 
+    accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'String'));
+    % work out if block has passed maximum size limit
+    if maxBlockSize ~= 0 && fsm.trialnum > maxBlockSize
+        if range(fsm.VISorODR(end-maxBlockSize:end)) == 0 % if all trials in the range are the same
+            forceSwitch = 1;
+        end
+    end
     % check how many trials of this block have been performed using fsm.VISorODR
     lastBlockChange = find(diff(VISorODR),1,'last');
     ntrlsSinceLastBlockChange = length(VISorODR)-lastBlockChange;
     if isempty(ntrlsSinceLastBlockChange); ntrlsSinceLastBlockChange = fsm.trialnum;end
-    NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'String'));
-    if ntrlsSinceLastBlockChange >= NtrialsAutoSwitch % if more than NtrialsAutoSwitch trials in this block
+    if forceSwitch % ignore auto-switch window if max block size has been reached
+        NtrialsAutoSwitch = 0;
+    else
+        NtrialsAutoSwitch = str2num(get(fsm.handles.NtrialsAutoSwitch,'String'));
+    end
+    if (ntrlsSinceLastBlockChange >= NtrialsAutoSwitch && ntrlsSinceLastBlockChange >= nIrrelTrials)  || forceSwitch % if more than NtrialsAutoSwitch trials in this block
         if VISorODR(end) == 1 % if visual block then just check accuracy on visual
-            if mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100 > accuracyThresholdAutoSwitch ... % if visual performance is above performance threshold
-                   && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end)) % and none of the trials in the window were transition trials
+            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100 > accuracyThresholdAutoSwitch ... % if visual performance is above performance threshold
+                    && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end))) ... % and none of the trials in the window were transition trials
+                    || forceSwitch
                 set(fsm.handles.VISorODR,'Value',2)
                 fprintf('AUTO SWITCHED TO ODOUR BLOCK!\n');
                 if transitionOn; fsm.transitionState(fsm.trialnum+1) = 1; end
             end
         end
         if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
-            if (mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch ... % if odour performance is above performance threshold
-                   && ~any(fsm.FAirrelOutcome(end-nIrrelTrials+1:end)==1) ... % and no irrelevant FAs in set window of trials
-                   && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end)) % and none of the trials in the window were transition trials
+            if ((mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch ... % if odour performance is above performance threshold
+                    && ~any(fsm.FAirrelOutcome(end-nIrrelTrials+1:end)==1) ... % and no irrelevant FAs in set window of trials
+                    && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end))) ... % and none of the trials in the window were transition trials
+                    || forceSwitch
                 set(fsm.handles.VISorODR,'Value',1)
                 fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
-                if transitionOn; fsm.transitionState(fsm.trialnum+1) = 1; end
+                if transitionOn
+                    fsm.transitionState(fsm.trialnum+1) = 1;
+                    if get(fsm.handles.laserOffset','value') > 1
+                        fsm.laserOffsetOn = 1;
+                    end
+                end
             end
         end
     end
@@ -1287,6 +1354,30 @@ global fsm
 
 % Check which block, vis or odr
 VISorODR   = get(fsm.handles.VISorODR,'Value');
+
+% if using laser offset on first visual block trials
+if fsm.laserOffsetOn == 1
+    laserOffsetTrials = get(fsm.handles.laserOffset','value');
+    switch laserOffsetTrials
+        case 1
+            fsm.laserOffsetOn = 0;
+        case 2 % after one miss/any outcome
+            if fsm.transitionState(fsm.trialnum) == 1
+                fsm.laserOffsetOn = 0; % return to normal p laser
+            end
+        case 3 % after one hit
+            if fsm.outcome(fsm.trialnum) == 1 && fsm.transitionState(fsm.trialnum) == 1
+                fsm.laserOffsetOn = 0;
+            end
+        case 4 % after three hits
+            if all(fsm.outcome(fsm.trialnum-2:fsm.trialnum) == 1) && all(fsm.transitionState(fsm.trialnum-2:fsm.trialnum) == 1)
+                fsm.laserOffsetOn = 0;
+            end
+    end
+end
+
+
+
 fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
 
 fsm.TspeedMaintainMinByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmin,'String'));
@@ -1295,6 +1386,13 @@ fsm.spdRngLowByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.spdrnglow,'String
 fsm.punishTByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.punishT,'String'));
 fsm.pirrelByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrel,'String'));
 fsm.prewdByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.prewd,'String'));
+
+% if user has manually changed block type, force transition states
+if fsm.trialnum > 2
+    if fsm.VISorODR(fsm.trialnum) ~= VISorODR && get(fsm.handles.transition,'Value')
+        fsm.transitionState(fsm.trialnum+1) = 1;
+    end
+end
 
 switch VISorODR
     case 1 % visual block
@@ -1377,7 +1475,6 @@ switch VISorODR
         % select if irrelevant grating displayed
         if rand < str2num(get(fsm.handles.pirrel,'String')) || fsm.transitionState(fsm.trialnum+1) == 1 %
             fsm.irrelgrating(fsm.trialnum+1) = 1;
-            
             % select irrelevant grating orientation
             if fsm.transitionState(fsm.trialnum+1) == 1
                 fsm.oridiff(fsm.trialnum+1) = max(fsm.oridifflist);
@@ -1385,7 +1482,6 @@ switch VISorODR
                 rr = randi([1, length(fsm.oridifflist)]);
                 fsm.oridiff(fsm.trialnum+1) = fsm.oridifflist(rr);
             end
-            
             fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
             fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
             if rand < .5 || fsm.transitionState(fsm.trialnum+1)
@@ -1512,7 +1608,11 @@ if button_state == get(hObject,'Max') % create speed monitor axes
     set(fsm.handles.nIrrelTrials,'visible','off');
     set(fsm.handles.Tirreldelaymeanadd_label,'visible','off');
     set(fsm.handles.Tirreldelaymeanadd,'visible','off');
-    
+    set(fsm.handles.maxBlockSize_label,'visible','off');
+    set(fsm.handles.maxBlockSize,'visible','off');
+    set(fsm.handles.laserOffset_label,'visible','off');
+    set(fsm.handles.laserOffset,'visible','off');
+    set(fsm.handles.constantLaser,'visible','off');
     
 elseif button_state == get(hObject,'Min') % hide speed monitor axes
     set(fsm.handles.ax(1),'visible','off');
@@ -1527,6 +1627,11 @@ elseif button_state == get(hObject,'Min') % hide speed monitor axes
     set(fsm.handles.nIrrelTrials,'visible','on');
     set(fsm.handles.Tirreldelaymeanadd_label,'visible','on');
     set(fsm.handles.Tirreldelaymeanadd,'visible','on');
+    set(fsm.handles.maxBlockSize_label,'visible','on');
+    set(fsm.handles.maxBlockSize,'visible','on');
+    set(fsm.handles.laserOffset_label,'visible','on');
+    set(fsm.handles.laserOffset,'visible','on');
+    set(fsm.handles.constantLaser,'visible','on');
     try
         set(fsm.handles.spdplot,'visible','off');
         set(fsm.handles.spdRngHiLine,'visible','off');
