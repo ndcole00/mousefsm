@@ -101,6 +101,8 @@ fsm.transitionState = 0; % 1 if in transition conditions, 0 if in normal conditi
 fsm.maxBlockSize = 0; % 0 = no maximum block size
 fsm.laserOffsetOn = 0; % whether to set laser to off in first visual trials following auto-switch
 fsm.constantLaser = 0; % whether to have laser signal on constantly, if ITI is checked
+
+fsm.switchCount = 0; % for monitoring number of switchs visual to odour, for alternating laser
 %--------------------------------------------------------------------------
 % make GUI
 for i = 1 % IF statement just to enable folding of this chunk of code
@@ -486,6 +488,15 @@ for i = 1 % IF statement just to enable folding of this chunk of code
         'Position', [0.75 0.65 0.12 0.08],'String',{'Off','0','1','3'},'TooltipString',['Number of trials for which to delay laser onset, following auto-switch to visual',char(10),'0 = wait for one trial, 1 = wait for one hit, 3 = wait for 3 consecutive hits'], ...
         'Value',1,'FontSize',10);
     
+    % Alternating blocks of laser/no laser
+    
+    fsm.handles.alternateLaser_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.64 0.635 0.10 0.04],...
+        'String','Alternate laser','FontSize',10);
+    fsm.handles.alternateLaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
+        'Position', [0.75 0.6 0.12 0.08],'String',{'Off','No laser','Laser'},'TooltipString',['Whether to alternate laser for pairs of olfactory/visual blocks',char(10),'No laser = first odour block laser off, Laser = first odour block laser on'], ...
+        'Value',1,'FontSize',10);
+    
     
     %%%%% Buttons%%%%
     % Start button
@@ -593,7 +604,9 @@ while keeprunning
     iti   = str2num(get(fsm.handles.Titi,'string'));
     extraT= str2num(get(fsm.handles.Textrawait,'string'));
     fsm.itiLaser = get(fsm.handles.itiLaser ,'Value'); % whether laser timing is confined to ITI window
-    fsm.constantLaser = get(fsm.handles.constantLaser ,'Value'); % laser on throughout trial
+    if get(fsm.handles.alternateLaser','value') == 0
+        fsm.constantLaser = get(fsm.handles.constantLaser ,'Value'); % laser on throughout trial, but only if not using alternating laser
+    end
     %     mcvT  = str2num(get(fsm.handles.Tminorientationview,'string'));
     pT    = str2num(get(fsm.handles.punishT,'string'));
     fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
@@ -745,8 +758,6 @@ while keeprunning
     itiL = 0; % laser during inter-trial-interval
     
     Gap = 0; % gap between end of laser and end of stim
-    Lpre = 0; % start time of laser, relative to vis stim onset
-    Lpst = iti; % end time of laser, relative to vis stim onset
     
     IR3 = IR; % sequence of states dependent on laser timing
     
@@ -761,7 +772,7 @@ while keeprunning
     end
     
     % if laser trial
-    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser
+    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser && get(fsm.handles.alternateLaser','value') == 0
         LR = 12;
         
         % choose laser power (PWM)
@@ -832,13 +843,21 @@ while keeprunning
         itiL = L;
         pwrITI = pwr;
         
-        % if using ITI laser, laser is on during odour stimuli
-        if Stim==Odr1 || Stim==Odr2
-            relL = L;
-            pwrRel = pwr;
-            pwrIrr = 0;
-            Lpst = 0;
+        if fsm.itiLaser % if using ITI laser
+            
+            % laser is not on during visual stimuli
+            Lpre = 0; % start time of laser, relative to vis stim onset
+            Lpst = 0; % end time of laser, relative to vis stim onset
+            
+            % laser is on during odour stimuli
+            if Stim==Odr1 || Stim==Odr2
+                relL = L;
+                pwrRel = pwr;
+                pwrIrr = 0;
+            end
         end
+        
+        
         
         if fsm.constantLaser % have laser on throughout stims and ITI
             pwrIrr = pwr;
@@ -1376,7 +1395,23 @@ if fsm.laserOffsetOn == 1
     end
 end
 
-
+% if using alternating laser on switches v2o
+if fsm.trialnum > 0
+    if VISorODR == 2 && fsm.VISorODR(fsm.trialnum) == 1 % if switching v2o
+        fsm.switchCount = fsm.switchCount + 1; % count number of switches
+        % remember that constant laser is used as a suppression signal
+        % so constantLaser = 1 means laser is off
+        if rem(fsm.switchCount,2) == get(fsm.handles.alternateLaser','value') % if no laser on first switch, and on first switch
+            fsm.constantLaser = 1;
+        elseif rem(fsm.switchCount,2) == 0 && get(fsm.handles.alternateLaser','value') == 1 % if no laser on first switch, but on second switch
+            fsm.constantLaser = 0;
+        elseif rem(fsm.switchCount,2) == 1 && get(fsm.handles.alternateLaser','value') == 2 % if laser on first switch, and on first switch
+            fsm.constantLaser = 0;
+        elseif rem(fsm.switchCount,2) == 0 && get(fsm.handles.alternateLaser','value') == 2 % if laser on first switch, but on second switch
+            fsm.constantLaser = 1;
+        end
+    end
+end
 
 fsm.oridifflist =  str2num(get(fsm.handles.oridifflist,'String'));
 
