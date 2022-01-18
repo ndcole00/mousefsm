@@ -1028,8 +1028,11 @@ switch rcvd
                 fprintf('%s\n',fsm.triallog{fsm.trialnum});
                 findoutcome(triallog)
                 
-                % save trial log to temporary fsm file
-                save(fsm.tempFName,'-struct','fsm','triallog','-append');
+                % save fsm structure to temporary fsm file, in case of crashes
+                fsm_temp = fsm;
+                fsm = rmfield(fsm,'handles');% to avoid saving figure
+                save(fsm.tempFName,'fsm');
+                fsm = fsm_temp; clear fsm_temp;
                 
                 fsm.trialend = 0;
                 
