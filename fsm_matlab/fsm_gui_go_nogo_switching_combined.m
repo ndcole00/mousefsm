@@ -31,7 +31,7 @@ fsm.PCname = getenv('computername');
 % Initialise
 % try fsm.comport = num2str(GetComPort ('USB Serial Device'));
 % catch; fprintf('Trying Teensy USB Serial\n'); fsm.comport = num2str(GetComPort ('Teensy USB Serial'));end
-fsm.comport = helper.fetchScreensAndComport('com');
+fsm.comport = 'COM3';%helper.fetchScreensAndComport('com');
 
 fsm.token = 'M99_B1';
 fsm.fname = '';
@@ -68,6 +68,7 @@ fsm.instspeed = 0;
 fsm.VISorODR = [];
 fsm.vbl = 0;
 fsm.pirrel = 0;
+fsm.pirrelodr = 0;
 fsm.Tirrelgrating = 1.8;
 fsm.Tirreldelay = 1.8;
 fsm.Tirreldelaymeanadd = 0;
@@ -95,6 +96,7 @@ fsm.TspeedMaintainMeanAddbyTrial = [];
 fsm.spdRngLowByTrial = [];
 fsm.punishTByTrial = [];
 fsm.pirrelByTrial = [];
+fsm.pirrelodrByTrial = [];
 fsm.prewdByTrial = [];
 fsm.itiLaser = [];
 fsm.transitionState = 0; % 1 if in transition conditions, 0 if in normal conditions
@@ -259,12 +261,21 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     
     % Prob irrel gratings %
     uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-        'Position', [0.02 0.1 0.2 0.04],...
-        'String','Prob Irrelevant Stim','FontSize',10);
+        'Position', [0.02 0.1 0.095 0.04],...
+        'String','Prob Irrel Vis','FontSize',10);
     fsm.handles.pirrel = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-        'Position', [0.23 0.1 0.1 0.04],...
+        'Position', [0.12 0.1 0.05 0.04],...
         'String',fsm.pirrel,'FontSize',10,...
-        'TooltipString','Probability of irrelevant grating in upcoming trial (must be odour block if asymmetric)');
+        'TooltipString','Probability of irrelevant grating in upcoming trial in an odour block');
+    
+    % Prob irrel odours %
+    uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.18 0.1 0.095 0.04],...
+        'String','Prob Irrel Odr','FontSize',10);
+    fsm.handles.pirrelodr = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+        'Position', [0.28 0.1 0.05 0.04],...
+        'String',fsm.pirrelodr,'FontSize',10,...
+        'TooltipString','Probability of irrelevant odour in upcoming trial in a visual block (only if symmetric task checked)');
     
     % Accuracy threshold for auto switch
     uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -1154,6 +1165,7 @@ fsm.TspeedMaintainMeanAddbyTrial = [];
 fsm.spdRngLowByTrial = [];
 fsm.punishTByTrial = [];
 fsm.pirrelByTrial = [];
+fsm.pirrelodrByTrial = [];
 fsm.prewdByTrial = [];
 fsm.lickThreshByTrial = [];
 fsm.transitionState = 0;
@@ -1423,6 +1435,7 @@ fsm.TspeedMaintainMeanAddbyTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspee
 fsm.spdRngLowByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.spdrnglow,'String'));
 fsm.punishTByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.punishT,'String'));
 fsm.pirrelByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrel,'String'));
+fsm.pirrelodrByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.pirrelodr,'String'));
 fsm.prewdByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.prewd,'String'));
 
 % if user has manually changed block type, force transition states
@@ -1484,7 +1497,7 @@ switch VISorODR
         set(fsm.handles.orientation, 'String',['Orientation: ' num2str(fsm.orientation(fsm.trialnum+1))]);
         
         % select if irrelevant ODOUR presented
-        if get(fsm.handles.symmetricTask,'Value') && (rand < str2num(get(fsm.handles.pirrel,'String'))) % Irrel odour
+        if get(fsm.handles.symmetricTask,'Value') && (rand < str2num(get(fsm.handles.pirrelodr,'String'))) % Irrel odour
             fsm.irrelodour(fsm.trialnum+1) = 1;
             % select irrelevant odour
             if rand < .5
