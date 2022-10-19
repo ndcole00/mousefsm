@@ -47,6 +47,7 @@ fsm.Tstimdurationmeanadd = .2;
 fsm.Trewdavailable = 1;
 fsm.Titi = .1;
 fsm.contrast = 1;
+fsm.pIrrelRwd = .5;
 fsm.orientation = [];
 fsm.spatialfreq = .1;
 fsm.temporalfreq = 2;
@@ -253,7 +254,7 @@ for i = 1 % IF statement just to enable folding of this chunk of code
         'Position', [0.23 0.2 0.1 0.04],...
         'String',fsm.rewd,'FontSize',10,...
         'TooltipString','Duration for which reward valve opens - determines size of reward');
-    
+    %{
     % Starting Contrast
     uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
         'Position', [0.02 0.15 0.2 0.04],...
@@ -261,7 +262,26 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     fsm.handles.contrast = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
         'Position', [0.23 0.15 0.1 0.04],...
         'String',fsm.contrast,'FontSize',10,...
-        'TooltipString','Starting contrast of visual gratings');
+        'TooltipString','Starting contrast of visual gratings'); 
+     %}
+    
+   % Starting Contrast -> made half size 
+    uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.02 0.15 0.095 0.04],...
+        'String','Starting contrast','FontSize',10);
+    fsm.handles.contrast = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+        'Position', [0.12 0.15 0.05 0.04],...
+        'String',fsm.contrast,'FontSize',10,...
+        'TooltipString','Starting contrast of visual gratings'); 
+
+    % prob irrel stim rewarded
+    uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.18 0.15 0.095 0.04],...
+        'String','Prob Irrel Rewarded','FontSize',10);
+    fsm.handles.pIrrelRwd = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+        'Position', [0.28 0.15 0.05 0.04],...
+        'String',fsm.pIrrelRwd,'FontSize',10,...
+        'TooltipString','Probability that the irrelevent stimulus will be rewarded');
     
     % Prob irrel gratings %
     uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
@@ -559,7 +579,7 @@ for i = 1 % IF statement just to enable folding of this chunk of code
 end
 
 % start serial port
-fsm.comport = 'COM7'; % Overwrite in the case of some error
+fsm.comport = 'COM4'; % Overwrite in the case of some error
 fsm.ard=serial(fsm.comport,'BaudRate',9600); % create serial communication object on port COM7
 set(fsm.ard,'Timeout',.01);
 fopen(fsm.ard); % initiate arduino communication
@@ -643,6 +663,7 @@ while keeprunning
     %     fsm.orientationchange = str2num(get(fsm.handles.orientationchange,'String'));
     %     if ~fsm.iscuetrial ; cueT = 0; end
     %     fsm.difflist = str2num(get(fsm.handles.orientationchangelist,'String'));
+
     
     % digiOut mapping
     R   =  2^0; %teensy pin 2, reward
@@ -1132,6 +1153,7 @@ fsm.oridifflist = str2num(get(fsm.handles.oridifflist,'string'));
 fsm.spdrnglow = str2num(get(fsm.handles.spdrnglow,'string'));
 fsm.extrawait = str2num(get(fsm.handles.Textrawait,'string'));
 fsm.contrast = str2num(get(fsm.handles.contrast,'string'));
+fsm.pIrrelRwd = str2num(get(fsm.handles.pIrrelRwd,'string'));
 fsm.punishT = str2num(get(fsm.handles.punishT,'string'));
 fsm.pirrel = str2num(get(fsm.handles.pirrel,'string'));
 fsm.prewd = str2num(get(fsm.handles.prewd,'string'));
@@ -1565,7 +1587,7 @@ switch VISorODR
             end
             fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
             fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
-            if rand < .5 || fsm.transitionState(fsm.trialnum+1)
+            if rand < str2num(get(fsm.handles.pIrrelRwd,'String')) || fsm.transitionState(fsm.trialnum+1)
                 fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
             else
                 fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
@@ -1726,5 +1748,3 @@ elseif button_state == get(hObject,'Min') % hide speed monitor axes
     catch
     end
 end
-
-% comment 
