@@ -1726,3 +1726,5 @@ elseif button_state == get(hObject,'Min') % hide speed monitor axes
     catch
     end
 end
+
+% comment 
