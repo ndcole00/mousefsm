@@ -100,6 +100,7 @@ fsm.pirrelByTrial = [];
 fsm.pirrelodrByTrial = [];
 fsm.prewdByTrial = [];
 fsm.contrastByTrial = [];
+fsm.pIrrelRwdByTrial = [];
 fsm.itiLaser = [];
 fsm.transitionState = 0; % 1 if in transition conditions, 0 if in normal conditions
 
@@ -254,18 +255,8 @@ for i = 1 % IF statement just to enable folding of this chunk of code
         'Position', [0.23 0.2 0.1 0.04],...
         'String',fsm.rewd,'FontSize',10,...
         'TooltipString','Duration for which reward valve opens - determines size of reward');
-    %{
-    % Starting Contrast
-    uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-        'Position', [0.02 0.15 0.2 0.04],...
-        'String','Starting contrast','FontSize',10);
-    fsm.handles.contrast = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
-        'Position', [0.23 0.15 0.1 0.04],...
-        'String',fsm.contrast,'FontSize',10,...
-        'TooltipString','Starting contrast of visual gratings'); 
-     %}
-    
-   % Starting Contrast -> made half size 
+
+   % Starting Contrast 
     uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
         'Position', [0.02 0.15 0.095 0.04],...
         'String','Starting contrast','FontSize',10);
@@ -1215,6 +1206,7 @@ fsm.lickThreshByTrial = [];
 fsm.transitionState = 0;
 fsm.laserOffsetOn = 0;
 fsm.contrastByTrial = [];
+fsm.pIrrelRwdByTrial = [];
 
 set(fsm.handles.start,'enable','on')
 set(fsm.handles.toggleRewdValve,'enable','on')
@@ -1480,6 +1472,7 @@ else
     fsm.contrast = fsm.contrastlist(randi([1, length(fsm.contrastlist)]));
 end
 fsm.contrastByTrial(fsm.trialnum+1) = fsm.contrast;
+fsm.pIrrelRwdByTrial(fsm.trialnum+1) = fsm.pIrrelRwd;
 
 fsm.TspeedMaintainMinByTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmin,'String'));
 fsm.TspeedMaintainMeanAddbyTrial(fsm.trialnum+1) = str2num(get(fsm.handles.Tspeedmaintainmeanadd,'String'));
