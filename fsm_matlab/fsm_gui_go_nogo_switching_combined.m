@@ -812,7 +812,7 @@ while keeprunning
     end
     
     % if laser trial
-    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser && get(fsm.handles.alternateLaser','value') == 0
+    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser && get(fsm.handles.alternateLaser','value') == 1
         LR = 12;
         
         % choose laser power (PWM)
@@ -1446,18 +1446,18 @@ if fsm.laserOffsetOn == 1
 end
 
 % if using alternating laser on switches v2o
-if fsm.trialnum > 0
+if fsm.trialnum > 0 && get(fsm.handles.alternateLaser','value')~= 1
     if VISorODR == 2 && fsm.VISorODR(fsm.trialnum) == 1 % if switching v2o
         fsm.switchCount = fsm.switchCount + 1; % count number of switches
         % remember that constant laser is used as a suppression signal
         % so constantLaser = 1 means laser is off
-        if rem(fsm.switchCount,2) == get(fsm.handles.alternateLaser','value') % if no laser on first switch, and on first switch
+        if rem(fsm.switchCount,2) == 1 &&  get(fsm.handles.alternateLaser','value') == 2 % if no laser on first switch, and on first switch
             fsm.constantLaser = 1;
-        elseif rem(fsm.switchCount,2) == 0 && get(fsm.handles.alternateLaser','value') == 1 % if no laser on first switch, but on second switch
+        elseif rem(fsm.switchCount,2) == 0 && get(fsm.handles.alternateLaser','value') == 2 % if no laser on first switch, but on second switch
             fsm.constantLaser = 0;
-        elseif rem(fsm.switchCount,2) == 1 && get(fsm.handles.alternateLaser','value') == 2 % if laser on first switch, and on first switch
+        elseif rem(fsm.switchCount,2) == 1 && get(fsm.handles.alternateLaser','value') == 3 % if laser on first switch, and on first switch
             fsm.constantLaser = 0;
-        elseif rem(fsm.switchCount,2) == 0 && get(fsm.handles.alternateLaser','value') == 2 % if laser on first switch, but on second switch
+        elseif rem(fsm.switchCount,2) == 0 && get(fsm.handles.alternateLaser','value') == 3 % if laser on first switch, but on second switch
             fsm.constantLaser = 1;
         end
     end
@@ -1741,3 +1741,4 @@ elseif button_state == get(hObject,'Min') % hide speed monitor axes
     catch
     end
 end
+
