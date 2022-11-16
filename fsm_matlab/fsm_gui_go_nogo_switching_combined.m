@@ -430,7 +430,7 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     fsm.handles.maxBlockSize = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
         'Position', [0.82 0.75 0.05 0.04],...
         'String',fsm.maxBlockSize,'FontSize',10,...
-        'TooltipString',['If auto-switch is enabled, maximum size of block before block switch occurs automatically',char(10),'0 = no maximum block size']);
+        'TooltipString',['If auto-switch is enabled, maximum size of block before block switch occurs automatically',char(10),'0 = no maximum block size, 2 numbers is separate max size for vis and odr']);
     
     
     %%% Indicators %%%
@@ -1348,7 +1348,14 @@ else
     fsm.transitionState(fsm.trialnum+1) = 0;
 end
 
-maxBlockSize = str2num(get(fsm.handles.maxBlockSize,'String'));
+maxBlockSize = str2num(get(fsm.handles.maxBlockSize,'String')); % 15/11/22 Adil edit to allow 2 numbers for maxBlockSize (optional), Vis block, Odr block
+if numel(maxBlockSize) == 2 % if user entered 2 values
+    if fsm.VISorODR(end) == 1 % if visual block
+        maxBlockSize = maxBlockSize(1);
+    elseif fsm.VISorODR(end) == 2 % if odour block
+        maxBlockSize = maxBlockSize(2);
+    end
+end
 forceSwitch = 0;
 
 % Auto change the block type
@@ -1359,7 +1366,7 @@ if get(fsm.handles.autoSwitch,'Value')
     accuracyThresholdAutoSwitch = str2num(get(fsm.handles.accuracyThresholdAutoSwitch,'String'));
     % work out if block has passed maximum size limit
     if maxBlockSize ~= 0 && fsm.trialnum > maxBlockSize
-        if range(fsm.VISorODR(end-maxBlockSize:end)) == 0 % if all trials in the range are the same
+        if range(fsm.VISorODR(end-maxBlockSize+1:end)) == 0 % if all trials in the range are the same
             forceSwitch = 1;
         end
     end
