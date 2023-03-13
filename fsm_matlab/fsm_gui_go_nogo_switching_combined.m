@@ -113,7 +113,7 @@ fsm.switchCount = 0; % for monitoring number of switchs visual to odour, for alt
 fsm.blockTrialsAdded = []; % added N trials to block length
 fsm.includeBlankOrimapTrials = true;
 fsm.totalBlockLength = 0;
-
+fsm.autoAutoRewd = 0;
 %--------------------------------------------------------------------------
 % make GUI
 for i = 1 % IF statement just to enable folding of this chunk of code
@@ -445,6 +445,16 @@ for i = 1 % IF statement just to enable folding of this chunk of code
         'String',fsm.NrandTrialsBlock,'FontSize',10,...
         'TooltipString',['If auto-switch is enabled, mean of exp distribution from which',char(10),'to randomly extract N added trials to block length']);
     
+    % Auto auto reward
+    fsm.handles.autoAutoRewd_label  = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
+        'Position', [0.64 0.65 0.17 0.04],...
+        'String','Auto auto reward','FontSize',10);
+    fsm.handles.autoAutoRewd  = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit',...
+        'Position', [0.82 0.65 0.05 0.04],...
+        'String',fsm.autoAutoRewd,'FontSize',10,...
+        'TooltipString','If non-zero, this will switch on auto reward at block transitions and stop it after N trials');
+    
+    fsm.handles.autoAutoRewd
     %%% Indicators %%%
     
     % Filename
@@ -535,19 +545,19 @@ for i = 1 % IF statement just to enable folding of this chunk of code
     % Laser offsets relative to switch
     
     fsm.handles.laserOffset_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-        'Position', [0.64 0.635 0.10 0.04],...
+        'Position', [0.64 0.585 0.10 0.04],...
         'String','Laser offset','FontSize',10);
     fsm.handles.laserOffset = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-        'Position', [0.75 0.6 0.12 0.08],'String',{'Off','0','1','3'},'TooltipString',['Number of trials for which to delay laser onset, following auto-switch to visual',char(10),'0 = wait for one trial, 1 = wait for one hit, 3 = wait for 3 consecutive hits'], ...
+        'Position', [0.75 0.55 0.12 0.08],'String',{'Off','0','1','3'},'TooltipString',['Number of trials for which to delay laser onset, following auto-switch to visual',char(10),'0 = wait for one trial, 1 = wait for one hit, 3 = wait for 3 consecutive hits'], ...
         'Value',1,'FontSize',10);
     
     % Alternating blocks of laser/no laser
     
     fsm.handles.alternateLaser_label = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','edit','Enable','inactive',...
-        'Position', [0.64 0.585 0.10 0.04],...
+        'Position', [0.64 0.535 0.10 0.04],...
         'String','Alternate laser','FontSize',10);
     fsm.handles.alternateLaser = uicontrol('Parent',fsm.handles.f,'Units','normalized','Style','popupmenu',...
-        'Position', [0.75 0.55 0.12 0.08],'String',{'Off','No laser','Laser'},'TooltipString',['Whether to alternate laser for pairs of olfactory/visual blocks',char(10),'No laser = first odour block laser off, Laser = first odour block laser on'], ...
+        'Position', [0.75 0.5 0.12 0.08],'String',{'Off','No laser','Laser'},'TooltipString',['Whether to alternate laser for pairs of olfactory/visual blocks',char(10),'No laser = first odour block laser off, Laser = first odour block laser on'], ...
         'Value',1,'FontSize',10);
     
     
@@ -833,7 +843,8 @@ while keeprunning
     end
     
     % if laser trial
-    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser && get(fsm.handles.alternateLaser','value') == 1
+    if rand < pL  && ~fsm.itiLaser && ~fsm.constantLaser && get(fsm.handles.alternateLaser','value') == 1 ... 
+            && ~((get(fsm.handles.VISorODR,'Value')==2) && fsm.irrelgrating(fsm.trialnum+1) == 2)% Don't switch on laser in odour trial if there is no irrel
         LR = 12;
         
         % choose laser power (PWM)
@@ -937,6 +948,7 @@ while keeprunning
         set (fsm.handles.laserpoweroptions_label,'String',['Laser power: 0' ]);
         Lpre = 0;
         Lpst = 0;
+        fsm.laserpower(fsm.trialnum+1) = 0;
     end
     Lon = L+Bln;
     stm = [... % remember zero indexing; units are seconds, multiplied later to ms
@@ -1402,6 +1414,9 @@ if get(fsm.handles.autoSwitch,'Value')
     lastBlockChange = find(diff(VISorODR),1,'last');
     ntrlsSinceLastBlockChange = length(VISorODR)-lastBlockChange;
     if isempty(ntrlsSinceLastBlockChange); ntrlsSinceLastBlockChange = fsm.trialnum;end
+    if (str2num(get(fsm.handles.autoAutoRewd,'String')) > 0) && (ntrlsSinceLastBlockChange == str2num(get(fsm.handles.autoAutoRewd,'String')))% Adil: for autoAutoReward
+        set(fsm.handles.autorewd,'Value',0)
+    end
     if forceSwitch % ignore auto-switch window if max block size has been reached
         NtrialsAutoSwitch = 0;
     else
@@ -1430,12 +1445,15 @@ if get(fsm.handles.autoSwitch,'Value')
             end
         end
         if VISorODR(end) == 2 % if odr block then check accuracy on odour and also FAirrel
-            if ((mean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch ... % if odour performance is above performance threshold
+            if ((nanmean(correcttrials(end-NtrialsAutoSwitch+1:end))*100) > accuracyThresholdAutoSwitch ... % if odour performance is above performance threshold
                     && ~any(FAirrelOutcome(end-nIrrelTrials+1:end)==1) ... % and no irrelevant FAs in set window of trials
                     && ~any(fsm.transitionState(end-NtrialsAutoSwitch+1:end))) ... % and none of the trials in the window were transition trials
                     || forceSwitch
                 set(fsm.handles.VISorODR,'Value',1)
                 fprintf('AUTO SWITCHED TO VISUAL BLOCK!\n');
+                if str2num(get(fsm.handles.autoAutoRewd,'String')) > 0 % Adil 06/03/2023 adding option to switch on autoreward at block transitions and swith it off after N trials
+                    set(fsm.handles.autorewd,'Value',1)
+                end
                 fsm.blockTrialsAdded = [];
                 if transitionOn
                     fsm.transitionState(fsm.trialnum+1) = 1;
@@ -1445,7 +1463,9 @@ if get(fsm.handles.autoSwitch,'Value')
                 end
             end
         end
+        
     end
+    
 end
 
 
