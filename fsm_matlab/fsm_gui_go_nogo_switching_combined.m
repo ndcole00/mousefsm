@@ -1637,7 +1637,7 @@ switch VISorODR
         end
         set(fsm.handles.odour, 'String',['Odour: ' num2str(fsm.odour(fsm.trialnum+1))]);
         % select if irrelevant grating displayed
-        if rand < str2num(get(fsm.handles.pirrel,'String')) || fsm.transitionState(fsm.trialnum+1) == 1 %
+        if rand < str2num(get(fsm.handles.pirrel,'String')) || fsm.transitionState(fsm.trialnum+1) == 1
             fsm.irrelgrating(fsm.trialnum+1) = 1;
             % select irrelevant grating orientation
             if fsm.transitionState(fsm.trialnum+1) == 1
@@ -1648,7 +1648,9 @@ switch VISorODR
             end
             fsm.stim1ori = 180-fsm.oridiff(fsm.trialnum+1)/2;
             fsm.stim2ori = 180+fsm.oridiff(fsm.trialnum+1)/2;
-            if rand < str2num(get(fsm.handles.pIrrelRwd,'String')) || fsm.transitionState(fsm.trialnum+1)
+            if fsm.transitionState(fsm.trialnum+1) && fsm.VISorODR(fsm.trialnum) == 1 % if first trial of transition state
+                fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
+            elseif rand < str2num(get(fsm.handles.pIrrelRwd,'String')) || (fsm.transitionState(fsm.trialnum+1) && fsm.VISorODR(fsm.trialnum) == 2) % if second trial or later of transition
                 fsm.orientation(fsm.trialnum+1) = fsm.stim1ori;
             else
                 fsm.orientation(fsm.trialnum+1) = fsm.stim2ori;
